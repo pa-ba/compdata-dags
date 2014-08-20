@@ -1,0 +1,35 @@
+Name:			compdata-dags
+Version:		0.9
+Synopsis:            	Compositional Data Types on DAGs
+Description:
+  This library implements recursion schemes on directed acyclic
+  graphs. The recursion schemes are explained in detail in the paper
+  /Generalising Tree Traversals to DAGs/
+  (<http://www.diku.dk/~paba/pubs/entries/bahr15popl.html>).
+
+
+Category:               Generics
+License:                BSD3
+License-file:           LICENSE
+Author:                 Patrick Bahr, Emil Axelsson
+Maintainer:             paba@di.ku.dk
+Build-Type:             Simple
+Cabal-Version:          >=1.9.2
+bug-reports:            https://github.com/pa-ba/compdata-dags/issues
+
+
+library
+  Exposed-Modules:      Data.Comp.AG
+                        Data.Comp.Dag
+                        Data.Comp.AG.Term
+                        Data.Comp.AG.Dag
+  Build-Depends:	base >= 4.7, base < 5, compdata == 0.9.*, projection, unordered-containers, 
+                        mtl, containers, vector
+  hs-source-dirs:	src
+  ghc-options:          -W
+
+
+source-repository head
+  type:     git
+  location: https://github.com/pa-ba/compdata-dags
+
