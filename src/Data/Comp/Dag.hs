@@ -1,11 +1,15 @@
-{-# LANGUAGE BangPatterns       #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DoAndIfThenElse    #-}
+{-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE DoAndIfThenElse     #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Data.Comp.Dag
     ( Dag
     , termTree
     , reifyDag
+    , unravel
     ) where
 
 
@@ -75,3 +79,13 @@ reifyDag m = do
   edges <- readIORef edgesRef
   count <- readIORef counterRef
   return (Dag root edges count)
+
+
+-- | This function unravels a given graph to the term it
+-- represents.
+
+unravel :: forall f. Functor f => Dag f -> Term f
+unravel Dag {edges, root} = Term $ build <$> root
+    where build :: Context f Node -> Term f
+          build (Term t) = Term $ build <$> t
+          build (Hole n) = Term $ build <$> edges IntMap.! n
