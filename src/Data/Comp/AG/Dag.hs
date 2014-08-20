@@ -5,23 +5,25 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Data.Comp.AG.Dag where
+module Data.Comp.AG.Dag
+    ( runAG
+    , runRewrite
+    , module Data.Comp.Dag
+    ) where
 
+import Control.Monad.ST
+import Control.Monad.State
 import Data.Comp.AG
 import Data.Comp.Dag
+import Data.Comp.Dag.Internal
 import Data.Comp.Mapping
 import Data.Comp.Term
 import qualified Data.IntMap as IntMap
-
-import Control.Monad.ST
 import Data.Maybe
 import Data.STRef
+import qualified Data.Traversable as Traversable
 import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
-
-import qualified Data.Traversable as Traversable
-
-import Control.Monad.State
 
 -- | This function runs an attribute grammar on a dag. The result is
 -- the (combined) synthesised attribute at the root of the dag.

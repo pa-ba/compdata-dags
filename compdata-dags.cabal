@@ -23,6 +23,7 @@ library
                         Data.Comp.Dag
                         Data.Comp.AG.Term
                         Data.Comp.AG.Dag
+  Other-Modules:        Data.Comp.Dag.Internal
   Build-Depends:	base >= 4.7, base < 5, compdata == 0.9.*, projection, unordered-containers, 
                         mtl, containers, vector
   hs-source-dirs:	src

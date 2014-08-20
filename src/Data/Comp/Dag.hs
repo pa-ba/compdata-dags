@@ -1,30 +1,26 @@
+{-# LANGUAGE BangPatterns       #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE DoAndIfThenElse #-}
+{-# LANGUAGE DoAndIfThenElse    #-}
 
-module Data.Comp.Dag where
+module Data.Comp.Dag
+    ( Dag
+    , termTree
+    , reifyDag
+    ) where
 
 
-import Data.Comp.Term
-import Data.IntMap (IntMap)
-import qualified Data.IntMap as IntMap
-
+import Control.Applicative
+import Control.Exception.Base
 import Control.Monad.State
-
+import Data.Comp.Dag.Internal
+import Data.Comp.Term
 import qualified Data.HashMap.Lazy as HashMap
+import qualified Data.IntMap as IntMap
+import Data.IORef
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as Traversable
-import System.Mem.StableName
-import Control.Exception.Base
 import Data.Typeable
-import Data.IORef
-import Control.Applicative
-
-
-type Node = Int
-data Dag f = Dag { root      :: f (Context f Node)
-                 , edges     :: IntMap (f (Context f Node))
-                 , nodeCount :: Int }
+import System.Mem.StableName
 
 -- | Turn a term into a graph without sharing.
 termTree :: Functor f => Term f -> Dag f
@@ -36,23 +32,25 @@ data CyclicException = CyclicException
 
 instance Exception CyclicException
 
--- | This function takes a term, and returns a 'Dag' with the
--- implicit sharing of the input data structure made explicit.
-reifyDAG :: Traversable f => Term f -> IO (Dag f)
-reifyDAG m = do 
+-- | This function takes a term, and returns a 'Dag' with the implicit
+-- sharing of the input data structure made explicit. If the sharing
+-- structure of the term is cyclic an exception of type
+-- 'CyclicException' is thrown.
+reifyDag :: Traversable f => Term f -> IO (Dag f)
+reifyDag m = do
   tabRef <- newIORef HashMap.empty
   let findNodes (Term !j) = do
         st <- liftIO $ makeStableName j
         tab <- readIORef tabRef
         case HashMap.lookup st tab of
-          Just (single,f) | single -> writeIORef tabRef (HashMap.insert st (False,f) tab) 
+          Just (single,f) | single -> writeIORef tabRef (HashMap.insert st (False,f) tab)
                                       >> return st
                           | otherwise -> return st
           Nothing -> do res <- Traversable.mapM findNodes j
                         tab <- readIORef tabRef
-                        if HashMap.member st tab 
+                        if HashMap.member st tab
                           then throwIO CyclicException
-                          else writeIORef tabRef (HashMap.insert st (True,res) tab) 
+                          else writeIORef tabRef (HashMap.insert st (True,res) tab)
                                >> return st
   st <- findNodes m
   tab <- readIORef tabRef
@@ -61,7 +59,7 @@ reifyDAG m = do
   nodesRef <- newIORef HashMap.empty
   let run st = do
         let (single,f) = tab HashMap.! st
-        if single then Term <$> Traversable.mapM run f 
+        if single then Term <$> Traversable.mapM run f
         else do
           nodes <- readIORef nodesRef
           case HashMap.lookup st nodes of
