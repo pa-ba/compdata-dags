@@ -5,6 +5,25 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Data.Comp.Dag.AG
+-- Copyright   :  (c) 2014 Patrick Bahr, Emil Axelsson
+-- License     :  BSD3
+-- Maintainer  :  Patrick Bahr <paba@di.ku.dk>
+-- Stability   :  experimental
+-- Portability :  non-portable (GHC Extensions)
+--
+-- This module implements the recursion schemes from module
+-- "Data.Comp.AG" on 'Dag's. In order to deal with the sharing present
+-- in 'Dag's, the recursion schemes additionally take an argument of
+-- type @d -> d -> d@ that resolves clashing inherited attribute
+-- values.
+--
+--------------------------------------------------------------------------------
+
+
 module Data.Comp.Dag.AG
     ( runAG
     , runRewrite

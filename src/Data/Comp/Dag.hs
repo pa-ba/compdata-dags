@@ -5,6 +5,21 @@
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Data.Comp.Dag
+-- Copyright   :  (c) 2014 Patrick Bahr, Emil Axelsson
+-- License     :  BSD3
+-- Maintainer  :  Patrick Bahr <paba@di.ku.dk>
+-- Stability   :  experimental
+-- Portability :  non-portable (GHC Extensions)
+--
+-- This module implements a representation of directed acyclic graphs
+-- (DAGs) as compact representations of trees (or 'Term's).
+--
+--------------------------------------------------------------------------------
+
 module Data.Comp.Dag
     ( Dag
     , termTree
@@ -12,7 +27,6 @@ module Data.Comp.Dag
     , unravel
     , bisim
     ) where
-
 
 import Control.Applicative
 import Control.Exception.Base

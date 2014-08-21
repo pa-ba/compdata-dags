@@ -4,6 +4,19 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  Data.Comp.AG
+-- Copyright   :  (c) 2014 Patrick Bahr, Emil Axelsson
+-- License     :  BSD3
+-- Maintainer  :  Patrick Bahr <paba@di.ku.dk>
+-- Stability   :  experimental
+-- Portability :  non-portable (GHC Extensions)
+--
+-- This module implements recursion schemes derived from attribute
+-- grammars.
+--
+--------------------------------------------------------------------------------
 
 module Data.Comp.AG 
     ( runAG
