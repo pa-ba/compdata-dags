@@ -21,9 +21,9 @@ bug-reports:            https://github.com/pa-ba/compdata-dags/issues
 library
   Exposed-Modules:      Data.Comp.AG
                         Data.Comp.Dag
-                        Data.Comp.AG.Term
-                        Data.Comp.AG.Dag
+                        Data.Comp.Dag.AG
   Other-Modules:        Data.Comp.Dag.Internal
+                        Data.Comp.AG.Internal
   Build-Depends:	base >= 4.7, base < 5, compdata == 0.9.*, projection, unordered-containers, 
                         mtl, containers, vector
   hs-source-dirs:	src

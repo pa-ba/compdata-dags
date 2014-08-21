@@ -5,15 +5,16 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Data.Comp.AG.Dag
+module Data.Comp.Dag.AG
     ( runAG
     , runRewrite
-    , module Data.Comp.Dag
+    , module I
     ) where
 
 import Control.Monad.ST
 import Control.Monad.State
-import Data.Comp.AG
+import Data.Comp.AG.Internal
+import qualified Data.Comp.AG.Internal as I hiding (explicit)
 import Data.Comp.Dag
 import Data.Comp.Dag.Internal
 import Data.Comp.Mapping

@@ -1,70 +1,66 @@
-{-# LANGUAGE ImplicitParams        #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE Rank2Types            #-}
-{-# LANGUAGE TypeOperators         #-}
-
-module Data.Comp.AG where
+{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 
-import Data.Projection
 
+module Data.Comp.AG 
+    ( runAG
+    , runRewrite
+    , module I
+    )  where
+
+import qualified Data.Comp.AG.Internal as I hiding (explicit)
+import Data.Comp.AG.Internal
+import Data.Comp.Algebra
 import Data.Comp.Mapping
 import Data.Comp.Term
 
 
 
--- | This function provides access to components of the states from
--- "below".
 
-below :: (?below :: a -> q, p :< q) => a -> p
-below = pr . ?below
+-- | This function runs an attribute grammar on a term. The result is
+-- the (combined) synthesised attribute at the root of the term.
 
--- | This function provides access to components of the state from
--- "above"
+runAG :: forall f u d . Traversable f
+      => Syn' f (u,d) u -- ^ semantic function of synthesised attributes
+      -> Inh' f (u,d) d -- ^ semantic function of inherited attributes
+      -> (u -> d)       -- ^ initialisation of inherited attributes
+      -> Term f         -- ^ input term
+      -> u
+runAG up down dinit t = uFin where
+    uFin = run dFin t
+    dFin = dinit uFin
+    run :: d -> Term f -> u
+    run d (Term t) = u where
+        t' = fmap bel $ number t
+        bel (Numbered i s) =
+            let d' = lookupNumMap d i m
+            in Numbered i (run d' s, d')
+        m = explicit down (u,d) unNumbered t'
+        u = explicit up (u,d) unNumbered t'
 
-above :: (?above :: q, p :< q) => p
-above = pr ?above
+-- | This function runs an attribute grammar with rewrite function on
+-- a term. The result is the (combined) synthesised attribute at the
+-- root of the term and the rewritten term.
 
--- | Turns the explicit parameters @?above@ and @?below@ into explicit
--- ones.
-
-explicit :: ((?above :: q, ?below :: a -> q) => b) -> q -> (a -> q) -> b
-explicit x ab be = x where ?above = ab; ?below = be
-
-
-
-type Rewrite f q g = forall a . (?below :: a -> q, ?above :: q) => f a -> Context g a
-
-
--- | Definition of a synthesized attribute.
-
-type Syn' f p q = forall a . (?below :: a -> p, ?above :: p) => f a -> q
-type Syn  f p q = (q :< p) => Syn' f p q
-type SynExpl f p q = forall a . p -> (a -> p) -> f a -> q
-
-prodSyn :: (p :< c, q :< c)
-             => Syn f c p -> Syn f c q -> Syn f c (p,q)
-prodSyn sp sq t = (sp t, sq t)
-
-(|*|) :: (p :< c, q :< c)
-             => Syn f c p -> Syn f c q -> Syn f c (p,q)
-(|*|) = prodSyn
-
-
-
--- | Definition of an inherited attribute
-type Inh' f p q = forall m i . (Mapping m i, ?below :: i -> p, ?above :: p)
-                                => f i -> m q
-type Inh f p q = (q :< p) => Inh' f p q
-
-type InhExpl f p q = forall m i . Mapping m i => p -> (i -> p) -> f i -> m q
-
-prodInh :: (p :< c, q :< c)
-               => Inh f c p -> Inh f c q -> Inh f c (p,q)
-prodInh sp sq t = prodMap above above (sp t) (sq t)
-
--- | This is a synonym for 'prodInh'.
-
-(>*<) :: (p :< c, q :< c, Functor f)
-         => Inh f c p -> Inh f c q -> Inh f c (p,q)
-(>*<) = prodInh
+runRewrite :: forall f g u d . (Traversable f, Functor g)
+           => Syn' f (u,d) u -> Inh' f (u,d) d -- ^ semantic function of synthesised attributes
+           -> Rewrite f (u,d) g                -- ^ semantic function of inherited attributes
+           -> (u -> d)                         -- ^ initialisation of inherited attributes
+           -> Term f                           -- ^ input term
+           -> (u, Term g)
+runRewrite up down trans dinit t = res where
+    res@(uFin,_) = run dFin t
+    dFin = dinit uFin
+    run :: d -> Term f -> (u, Term g)
+    run d (Term t) = (u,t'') where
+        t' = fmap bel $ number t
+        bel (Numbered i s) =
+            let d' = lookupNumMap d i m
+                (u', s') = run d' s
+            in Numbered i ((u', d'),s')
+        m = explicit down (u,d) (fst . unNumbered) t'
+        u = explicit up (u,d) (fst . unNumbered) t'
+        t'' = appCxt $ fmap (snd . unNumbered) $ explicit trans (u,d) (fst . unNumbered) t'
