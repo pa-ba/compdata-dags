@@ -23,7 +23,7 @@ import Data.Comp.Derive
 data CircuitF a = Input | Nand a a
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
-$(derive [smartConstructors] [''CircuitF])
+$(derive [smartConstructors, makeShowF] [''CircuitF])
 
 
 type Circuit = Dag CircuitF

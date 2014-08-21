@@ -45,7 +45,8 @@ data ExpF a  =  LitB Bool   |  LitI Int  |  Var Name
              |  Eq a a      |  Add a a   |  If a a a
              |  Iter Name a a a
   deriving (Eq, Show, Functor, Foldable, Traversable)
-$(derive [smartConstructors] [''ExpF])
+
+$(derive [smartConstructors, makeShowF] [''ExpF])
 
 typeOf ::  (?below :: a -> atts, Maybe Type :< atts) =>
            a -> Maybe Type
