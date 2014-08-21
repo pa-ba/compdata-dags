@@ -26,6 +26,8 @@ module Data.Comp.Dag
     , reifyDag
     , unravel
     , bisim
+    , iso
+    , strongIso
     ) where
 
 import Control.Applicative
@@ -34,6 +36,7 @@ import Control.Monad.State
 import Data.Comp.Dag.Internal
 import Data.Comp.Term
 import qualified Data.HashMap.Lazy as HashMap
+import Data.IntMap
 import qualified Data.IntMap as IntMap
 import Data.IORef
 import Data.Foldable (Foldable)
@@ -43,6 +46,10 @@ import Data.Typeable
 import System.Mem.StableName
 import Data.Comp.Equality
 
+import Data.STRef
+import Control.Monad.ST
+import qualified Data.Vector as Vec
+import qualified Data.Vector.Generic.Mutable as MVec
 
 -- | Turn a term into a graph without sharing.
 termTree :: Functor f => Term f -> Dag f
@@ -129,3 +136,101 @@ bisim Dag {root=r1,edges=e1}  Dag {root=r2,edges=e2} = runF r1 r2
           runF f1 f2 = case eqMod f1 f2 of
                          Nothing -> False
                          Just l -> all run l
+
+
+-- | Checks whether the two given DAGs are isomorphic.
+
+iso :: (Traversable f, Foldable f, EqF f) => Dag f -> Dag f -> Bool
+iso g1 g2 = checkIso eqMod (flatten g1) (flatten g2)
+
+
+-- | Checks whether the two given DAGs are strongly isomorphic, i.e.
+--   their internal representation is the same modulo renaming of
+--   nodes.
+
+strongIso :: (Functor f, Foldable f, EqF f) => Dag f -> Dag f -> Bool
+strongIso Dag {root=r1,edges=e1,nodeCount=nx1}  
+          Dag {root=r2,edges=e2,nodeCount=nx2}
+              = checkIso checkEq (r1,e1,nx1) (r2,e2,nx2)
+    where checkEq t1 t2 = eqMod (Term t1) (Term t2)
+
+
+
+-- | This function flattens the internal representation of a DAG. That
+-- is, it turns the nested representation of edges into single layers.
+
+flatten :: forall f . Traversable f => Dag f -> (f Node, IntMap (f Node), Int)
+flatten Dag {root,edges,nodeCount} = runST run where
+    run :: forall s . ST s (f Node, IntMap (f Node), Int)
+    run = do
+      count <- newSTRef 0
+      nMap :: Vec.MVector s (Maybe Node) <- MVec.new nodeCount
+      MVec.set nMap Nothing
+      newEdges <- newSTRef IntMap.empty
+      let build :: Context f Node -> ST s Node
+          build (Hole n) = mkNode n
+          build (Term t) = do
+            n' <- readSTRef count
+            writeSTRef count $! (n'+1)                           
+            t' <- Traversable.mapM build t
+            modifySTRef newEdges (IntMap.insert n' t')
+            return n'
+          mkNode n = do
+            mn' <- MVec.unsafeRead nMap n
+            case mn' of
+              Just n' -> return n'
+              Nothing -> do n' <- readSTRef count
+                            writeSTRef count $! (n'+1)
+                            MVec.unsafeWrite nMap n (Just n')
+                            return n'
+          buildF (n,t) = do
+            n' <- mkNode n
+            t' <- Traversable.mapM build t
+            modifySTRef newEdges (IntMap.insert n' t')
+      root' <- Traversable.mapM build root
+      mapM_ buildF $ IntMap.toList edges
+      edges' <- readSTRef newEdges
+      nodeCount' <- readSTRef count
+      return (root', edges', nodeCount')
+      
+
+
+-- | Checks whether the two given dag representations are
+-- isomorphic. This function is polymorphic in the representation of
+-- the edges. The first argument is a function that checks whether two
+-- edges have the same labelling and if so, returns the matching pairs
+-- of outgoing nodes the two edges point to. Otherwise the function
+-- returns 'Nothing'.
+
+checkIso :: (e -> e -> Maybe [(Node,Node)])
+         -> (e, IntMap e, Int)
+         -> (e, IntMap e, Int) -> Bool
+checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
+   run :: ST s Bool
+   run = do
+     -- create empty mapping from nodes in g1 to nodes in g2
+     nMap :: Vec.MVector s (Maybe Node) <- MVec.new nx1
+     MVec.set nMap Nothing
+     -- create empty set of nodes in g2 that are "mapped to" by the
+     -- mapping created above
+     nSet :: Vec.MVector s Bool <- MVec.new nx2
+     MVec.set nSet False
+     let checkT t1 t2 = case checkEq t1 t2 of
+                          Nothing -> return False
+                          Just l -> liftM and $ mapM checkN l
+         checkN (n1,n2) = do
+           nm' <- MVec.unsafeRead nMap n1
+           case nm' of
+             Just n' -> return (n2 == n')
+             _ -> do
+               b <- MVec.unsafeRead nSet n2
+               if b 
+               -- n2 is already mapped to by another node
+               then return False 
+               -- n2 is not mapped to
+               else do
+                 -- create mapping from n1 to n2
+                 MVec.unsafeWrite nMap n1 (Just n2)
+                 MVec.unsafeWrite nSet n2 True
+                 checkT (e1 IntMap.! n1) (e2 IntMap.! n2)
+     checkT r1 r2
