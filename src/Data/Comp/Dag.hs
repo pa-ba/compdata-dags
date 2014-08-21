@@ -48,7 +48,8 @@ import Data.Comp.Equality
 termTree :: Functor f => Term f -> Dag f
 termTree (Term t) = Dag (fmap toCxt t) IntMap.empty 0
 
-
+-- | This exception indicates that a 'Term' could not be reified to a
+-- 'Dag' (using 'reifyDag') due to its cyclic sharing structure.
 data CyclicException = CyclicException
     deriving (Show, Typeable)
 
