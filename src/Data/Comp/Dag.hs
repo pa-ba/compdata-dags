@@ -34,22 +34,36 @@ import Control.Applicative
 import Control.Exception.Base
 import Control.Monad.State
 import Data.Comp.Dag.Internal
+import Data.Comp.Equality
 import Data.Comp.Term
+import Data.Foldable (Foldable)
 import qualified Data.HashMap.Lazy as HashMap
 import Data.IntMap
 import qualified Data.IntMap as IntMap
 import Data.IORef
-import Data.Foldable (Foldable)
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as Traversable
 import Data.Typeable
 import System.Mem.StableName
-import Data.Comp.Equality
 
-import Data.STRef
 import Control.Monad.ST
+import Data.Comp.Show
+import Data.List
+import Data.STRef
 import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
+
+instance (ShowF f, Functor f) => Show (Dag f)
+  where
+    show (Dag r es _) = unwords
+        [ "mkDag"
+        , show  (Term r)
+        , showLst ["(" ++ show n ++ "," ++ show (Term f) ++ ")" | (n,f) <- IntMap.toList es ]
+        ]
+      where
+        showLst ss = "[" ++ intercalate "," ss ++ "]"
+
+
 
 -- | Turn a term into a graph without sharing.
 termTree :: Functor f => Term f -> Dag f
@@ -118,11 +132,11 @@ unravel Dag {edges, root} = Term $ build <$> root
 
 -- | Checks whether two dags are bisimilar. In particular, we have
 -- the following equality
--- 
+--
 -- @
 -- bisim g1 g2 = (unravel g1 == unravel g2)
 -- @
--- 
+--
 -- That is, two dags are bisimilar iff they have the same unravelling.
 
 bisim :: forall f . (EqF f, Functor f, Foldable f)  => Dag f -> Dag f -> Bool
@@ -149,7 +163,7 @@ iso g1 g2 = checkIso eqMod (flatten g1) (flatten g2)
 --   nodes.
 
 strongIso :: (Functor f, Foldable f, EqF f) => Dag f -> Dag f -> Bool
-strongIso Dag {root=r1,edges=e1,nodeCount=nx1}  
+strongIso Dag {root=r1,edges=e1,nodeCount=nx1}
           Dag {root=r2,edges=e2,nodeCount=nx2}
               = checkIso checkEq (r1,e1,nx1) (r2,e2,nx2)
     where checkEq t1 t2 = eqMod (Term t1) (Term t2)
@@ -171,7 +185,7 @@ flatten Dag {root,edges,nodeCount} = runST run where
           build (Hole n) = mkNode n
           build (Term t) = do
             n' <- readSTRef count
-            writeSTRef count $! (n'+1)                           
+            writeSTRef count $! (n'+1)
             t' <- Traversable.mapM build t
             modifySTRef newEdges (IntMap.insert n' t')
             return n'
@@ -192,7 +206,7 @@ flatten Dag {root,edges,nodeCount} = runST run where
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef count
       return (root', edges', nodeCount')
-      
+
 
 
 -- | Checks whether the two given dag representations are
@@ -224,9 +238,9 @@ checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
              Just n' -> return (n2 == n')
              _ -> do
                b <- MVec.unsafeRead nSet n2
-               if b 
+               if b
                -- n2 is already mapped to by another node
-               then return False 
+               then return False
                -- n2 is not mapped to
                else do
                  -- create mapping from n1 to n2
