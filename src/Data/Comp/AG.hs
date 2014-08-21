@@ -1,7 +1,7 @@
-{-# LANGUAGE TypeOperators       #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators       #-}
 
 
 --------------------------------------------------------------------------------
@@ -18,17 +18,18 @@
 --
 --------------------------------------------------------------------------------
 
-module Data.Comp.AG 
+module Data.Comp.AG
     ( runAG
     , runRewrite
     , module I
     )  where
 
-import qualified Data.Comp.AG.Internal as I hiding (explicit)
 import Data.Comp.AG.Internal
+import qualified Data.Comp.AG.Internal as I hiding (explicit)
 import Data.Comp.Algebra
-import Data.Comp.Mapping
+import Data.Comp.Mapping as I
 import Data.Comp.Term
+import Data.Projection as I
 
 
 

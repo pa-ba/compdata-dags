@@ -36,7 +36,8 @@ import Data.Comp.AG.Internal
 import qualified Data.Comp.AG.Internal as I hiding (explicit)
 import Data.Comp.Dag
 import Data.Comp.Dag.Internal
-import Data.Comp.Mapping
+import Data.Comp.Mapping as I
+import Data.Projection as I
 import Data.Comp.Term
 import qualified Data.IntMap as IntMap
 import Data.Maybe
