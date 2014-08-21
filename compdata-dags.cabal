@@ -1,5 +1,5 @@
 Name:			compdata-dags
-Version:		0.9
+Version:		0.1
 Synopsis:            	Compositional Data Types on DAGs
 Description:
   This library implements recursion schemes on directed acyclic
