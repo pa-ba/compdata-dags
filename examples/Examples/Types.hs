@@ -16,8 +16,10 @@ import System.IO.Unsafe
 data IntTreeF a = Leaf Int | Node a a
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
-$(derive [smartConstructors, makeShowF] [''IntTreeF])
+$(derive [smartConstructors, makeShowF, makeEqF] [''IntTreeF])
 
+
+-- Example terms and dags
 
 it1 :: Term IntTreeF
 it1 = iNode (iNode x (iLeaf 10)) x
