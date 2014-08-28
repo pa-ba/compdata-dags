@@ -5,6 +5,7 @@ import Examples.Repmin
 import Examples.TypeInference
 import Examples.LeavesBelow
 import Test.QuickCheck
+import Test.HUnit
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
 import Test.Framework.Providers.HUnit
@@ -18,6 +19,7 @@ tests =
     [ testGroup "Repmin"
       [ testCase "AG" case_repminAG
       , testCase "Rewrite" case_repminRewrite
+      , testCase "TreePAG" case_repminTreePAG
       , testCase "PAG" case_repminPAG
       ]
     , testProperty "LeavesBelow" prop_leavesBelow
@@ -42,6 +44,8 @@ case_repminAG = testAllEq' intTrees repmin repminG
 case_repminRewrite = testAllEq' intTrees repmin (unravel . repminG')
 
 case_repminPAG = testAllDagEq' intTrees repminG' PAG.repminG
+case_repminTreePAG = mapM_ run intTrees 
+    where run t = repmin t @=? PAG.repmin t
 
 prop_leavesBelow d = testAllEq intTrees (leavesBelow d) (leavesBelowG d)
 
