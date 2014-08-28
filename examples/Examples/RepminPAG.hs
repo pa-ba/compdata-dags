@@ -5,7 +5,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 
 
-module Examples.Repmin where
+module Examples.RepminPAG where
 
 import Data.Comp.PAG
 import Data.Comp.Dag

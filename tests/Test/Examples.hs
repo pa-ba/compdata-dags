@@ -12,11 +12,13 @@ import Test.Utils
 import Data.Comp.Term
 import Data.Comp.Dag
 import qualified Data.Map as Map
+import qualified Examples.RepminPAG as PAG
 
 tests = 
     [ testGroup "Repmin"
       [ testCase "AG" case_repminAG
       , testCase "Rewrite" case_repminRewrite
+      , testCase "PAG" case_repminPAG
       ]
     , testProperty "LeavesBelow" prop_leavesBelow
     , testCase "TypeInference" case_typeInf
@@ -38,6 +40,8 @@ intTrees = [it1,it2,it3,it4] where
 
 case_repminAG = testAllEq' intTrees repmin repminG
 case_repminRewrite = testAllEq' intTrees repmin (unravel . repminG')
+
+case_repminPAG = testAllDagEq' intTrees repminG' PAG.repminG
 
 prop_leavesBelow d = testAllEq intTrees (leavesBelow d) (leavesBelowG d)
 
