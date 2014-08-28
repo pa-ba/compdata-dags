@@ -29,7 +29,7 @@ import qualified Data.Comp.AG.Internal as I hiding (explicit)
 import Data.Comp.Algebra
 import Data.Comp.Mapping as I
 import Data.Comp.Term
-import Data.Projection as I
+import Data.Comp.Projection as I
 
 
 
