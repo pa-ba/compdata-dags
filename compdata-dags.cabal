@@ -33,6 +33,7 @@ library
                         Data.Comp.Dag.PAG
   Other-Modules:        Data.Comp.Dag.Internal
                         Data.Comp.AG.Internal
+                        Data.Comp.PAG.Internal
   Build-Depends:	base >= 4.7, base < 5, compdata == 0.10.*, unordered-containers, 
                         mtl, containers, vector
   hs-source-dirs:	src
