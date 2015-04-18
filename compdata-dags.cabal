@@ -46,7 +46,7 @@ Test-Suite test
   hs-source-dirs:	tests examples src
   Build-Depends:        base >= 4.7, base < 5, compdata == 0.10.*, unordered-containers, 
                         mtl, containers, vector, test-framework-hunit, HUnit, test-framework, QuickCheck,
-                        test-framework-quickcheck2
+                        test-framework-quickcheck2 >= 0.3
 
 
 source-repository head
