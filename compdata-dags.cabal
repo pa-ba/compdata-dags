@@ -5,7 +5,7 @@ Description:
   This library implements recursion schemes on directed acyclic
   graphs. The recursion schemes are explained in detail in the paper
   /Generalising Tree Traversals to DAGs/
-  (<http://www.diku.dk/~paba/pubs/entries/bahr15popl.html>).
+  (<http://dx.doi.org/10.1145/2678015.2682539>).
 
 
 Category:               Generics
