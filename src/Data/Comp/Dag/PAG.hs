@@ -1,3 +1,5 @@
+{-# LANGUAGE IncoherentInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE NamedFieldPuns      #-}
@@ -5,6 +7,7 @@
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE FlexibleInstances   #-}
 
 
 --------------------------------------------------------------------------------
@@ -39,22 +42,28 @@ import Data.Comp.Multi.Projection as I
 import Data.Comp.PAG.Internal
 import qualified Data.Comp.PAG.Internal as I hiding (explicit)
 import Data.Comp.Term
-import Data.IntMap (IntMap)
+
 import qualified Data.IntMap as IntMap
+import Data.IntMap (IntMap)
+
+import Data.Vector (MVector)
+
 
 import Data.Maybe
 import Data.STRef
 import qualified Data.Traversable as Traversable
 
-import Data.Vector (MVector)
+
 import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
+
+import Control.Monad.State
 
 
 -- | This function runs an attribute grammar on a dag. The result is
 -- the (combined) synthesised attribute at the root of the dag.
 
-runPAG :: forall f d u g . (Traversable f, Traversable d, Traversable u, Traversable g)
+runPAG :: forall f d u g . (Traversable f, Traversable d, Traversable g, Traversable u)
       => (forall a . d a -> d a -> d a)      -- ^ resolution function for inherited attributes
       -> Syn' f (u :*: d) u g                -- ^ semantic function of synthesised attributes
       -> Inh' f (u :*: d) d g                -- ^ semantic function of inherited attributes
@@ -75,14 +84,7 @@ runPAG res syn inh dinit Dag {edges,root,nodeCount} = result where
       -- allocate references represent edges of the target DAG
       nextNode <- newSTRef 0
       newEdges <- newSTRef (IntMap.empty :: IntMap (g (Context g Node)))
-      let fresh :: Context g Node -> ST s Node
-          fresh (Hole n) = return n
-          fresh (Term t) = do
-             n <- readSTRef nextNode
-             writeSTRef nextNode $! (n+1)
-             modifySTRef newEdges (IntMap.insert n t)
-             return n
-          -- This function is applied to each edge
+      let -- This function is applied to each edge
           iter (node,s) = do
              let d = fromJust $ dmapFin Vec.! node
              u <- run d s
@@ -92,16 +94,21 @@ runPAG res syn inh dinit Dag {edges,root,nodeCount} = result where
           -- attribute value along with the rewritten subtree.
           run :: d Node -> f (Context f Node) -> ST s (u Node)
           run d t = mdo
+             e <- readSTRef newEdges
+             n <- readSTRef nextNode
              -- apply the semantic functions
-             u <- Traversable.mapM fresh $  explicit syn (u :*: d) unNumbered result
-             let m = explicit inh (u :*: d) unNumbered result
+             let mkFresh = liftM2 (,) (Traversable.mapM freshNode $  explicit syn (u :*: d) unNumbered result)
+                                      (Traversable.mapM (Traversable.mapM freshNode) $  explicit inh (u :*: d) unNumbered result)
+                 ((u,m),(Fresh n' e')) = runState mkFresh (Fresh n e)
+             writeSTRef newEdges e'
+             writeSTRef nextNode n'
                  -- recurses into the child nodes and numbers them
              let run' :: Context f Node -> ST s (Numbered ((u :*: d) Node))
                  run' s = do i <- readSTRef count
                              writeSTRef count $! (i+1)
-                             d' <- case lookupNumMap' i m of
-                                     Nothing -> return d
-                                     Just d' -> Traversable.mapM fresh $ d'
+                             let d' = case lookupNumMap' i m of
+                                       Nothing -> d
+                                       Just d' -> d'
                              u' <- runF d' s
                              return (Numbered i (u' :*: d'))
              writeSTRef count 0
@@ -118,7 +125,11 @@ runPAG res syn inh dinit Dag {edges,root,nodeCount} = result where
                          _      -> d
              MVec.unsafeWrite dmap x (Just new)
              return (umapFin Vec.! x)
-      dFin <- Traversable.mapM fresh $ dinit uFin
+      e <- readSTRef newEdges
+      n <- readSTRef nextNode
+      let (dFin,Fresh n' e') = runState (Traversable.mapM freshNode $ dinit uFin) (Fresh n e)
+      writeSTRef newEdges e'
+      writeSTRef nextNode n'
       -- first apply to the root
       u <- run dFin root
       -- then apply to the edges
@@ -130,6 +141,25 @@ runPAG res syn inh dinit Dag {edges,root,nodeCount} = result where
       newEdgesCount <- readSTRef nextNode
       let relabel n = relabelNodes n newEdgesFin newEdgesCount
       return (u, fmap relabel u)
+
+
+-- | The state space for the function 'freshNode'.
+
+data Fresh f = Fresh {nextFreshNode :: Int, freshEdges :: IntMap (f (Context f Node))}
+
+-- | Allocates a fresh node for the given context. A new edge is store
+-- in the state monad that maps the fresh node to the context that was
+-- passed to the function. If the context is just a single node, that
+-- node is returned.
+
+freshNode :: Context g Node -> State (Fresh g) Node
+freshNode (Hole n) = return n
+freshNode (Term t) = do
+  s <- get
+  let n = nextFreshNode s
+      e = freshEdges s
+  put (s {freshEdges= IntMap.insert n t e, nextFreshNode = n+1 })
+  return n
 
 
 -- | This function relabels the nodes of the given dag. Parts that are

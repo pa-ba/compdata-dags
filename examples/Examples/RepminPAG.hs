@@ -7,7 +7,7 @@
 -- This is an implementation of repmin as a PAG. The use of a PAG
 -- allows us to implement repmin such that the result of repmin is a
 -- DAG with only one leaf node, which is shared throughout the
--- DAG. This is achieved as follows instead of only collecting the
+-- DAG. This is achieved as follows: instead of only collecting the
 -- minimum synthesised attribute and then turning it into an inherited
 -- attribute, which propagates the minimum to the leaves of the graph,
 -- we construct a single leaf node with the minimum labelling and
