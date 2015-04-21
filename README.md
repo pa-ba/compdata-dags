@@ -1,5 +1,5 @@
-Compositional Data Types on DAGs
-================================
+# Compositional Data Types on DAGs [![Build Status](https://travis-ci.org/pa-ba/compdata-dags.svg?branch=master)](https://travis-ci.org/pa-ba/compdata-dags)
+
 
 This library implements recursion schemes on directed acyclic
 graphs. The recursion schemes are explained in detail in the paper
