@@ -84,7 +84,6 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
                              let d' = lookupNumMap d i m
                              u' <- runF d' s -- recurse
                              return (Numbered i (u',d'))
-             writeSTRef count 0  -- re-initialize counter
              result <- Traversable.mapM run' t
              return u
           -- recurses through the tree structure
@@ -101,6 +100,7 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
           runF d (Term t)  = run d t
           -- This function is applied to each edge
           iter (n, t) = do
+            writeSTRef count 0  -- re-initialize counter
             u <- run (fromJust $ dmapFin Vec.! n) t
             MVec.unsafeWrite umap n u
       -- first apply to the root
@@ -143,6 +143,7 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
       let -- This function is applied to each edge
           iter (node,s) = do
              let d = fromJust $ dmapFin Vec.! node
+             writeSTRef count 0
              (u,t) <- run d s
              MVec.unsafeWrite umap node u
              MVec.unsafeWrite allEdges node t
@@ -161,7 +162,6 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
                              let d' = lookupNumMap d i m
                              (u',t) <- runF d' s
                              return (Numbered i ((u',d'), t))
-             writeSTRef count 0
              result <- Traversable.mapM run' t
              let t' = join $ fmap (snd . unNumbered) $ explicit rewr (u,d) (fst . unNumbered) result
              return (u, t')
