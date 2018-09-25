@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 -- This is an implementation of repmin as a PAG. The use of a PAG
 -- allows us to implement repmin such that the result of repmin is a

@@ -30,7 +30,6 @@ module Data.Comp.Dag
     , strongIso
     ) where
 
-import Control.Applicative
 import Control.Exception.Base
 import Control.Monad.State
 import Data.Comp.Dag.Internal

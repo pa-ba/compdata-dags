@@ -2,6 +2,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE FlexibleContexts      #-}
 
 --------------------------------------------------------------------------------
 -- |

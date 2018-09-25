@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeOperators  #-}
 {-# LANGUAGE ImplicitParams #-}
-
+{-# LANGUAGE FlexibleContexts #-}
 
 module Examples.LeavesBelow where
 
