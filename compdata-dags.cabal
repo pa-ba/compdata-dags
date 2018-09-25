@@ -1,5 +1,5 @@
 Name:			compdata-dags
-Version:		0.2
+Version:		0.2.1
 Synopsis:            	Compositional Data Types on DAGs
 Description:
   This library implements recursion schemes on directed acyclic
@@ -47,23 +47,23 @@ Test-Suite test
   Build-Depends:        base >= 4.7, base < 5, compdata >= 0.10, unordered-containers, 
                         mtl, containers, vector, test-framework-hunit, HUnit, test-framework,
                         QuickCheck >= 2 && < 2.8, test-framework-quickcheck2 >= 0.3
-  Other-Modules:
-        Data.Comp.AG
-        Data.Comp.AG.Internal
-        Data.Comp.Dag
-        Data.Comp.Dag.AG
-        Data.Comp.Dag.Internal
-        Data.Comp.Dag.PAG
-        Data.Comp.PAG
-        Data.Comp.PAG.Internal
-        Examples.LeavesBelow
-        Examples.Repmin
-        Examples.RepminPAG
-        Examples.TypeInference
-        Examples.Types
-        Test.Dag
-        Test.Examples
-        Test.Utils
+  Other-Modules:        Data.Comp.AG
+                        Data.Comp.AG.Internal
+                        Data.Comp.Dag
+                        Data.Comp.Dag.AG
+                        Data.Comp.Dag.Internal
+                        Data.Comp.Dag.PAG
+                        Data.Comp.PAG
+                        Data.Comp.PAG.Internal
+                        Examples.LeavesBelow
+                        Examples.Repmin
+                        Examples.RepminPAG
+                        Examples.TypeInference
+                        Examples.Types
+                        Examples.Circuit
+                        Test.Dag
+                        Test.Examples
+                        Test.Utils
 
 source-repository head
   type:     git
