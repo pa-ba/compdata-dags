@@ -96,8 +96,7 @@ instance Hashable (SName f i) where
     hashWithSalt i = hashWithSalt 239 . hashWithSalt i . getSName
 instance Hashable (Some (SName f)) where
     hashWithSalt i (Some x) = hashWithSalt 890 $ hashWithSalt i x
-newtype TermPair f i = TermPair {getTermPair :: (Bool, StableName (f (Term f) i))}
-    {-
+newtype TermPair f i = TermPair {getTermPair :: (Bool, f (SName f) i)}
 
 -- | This function takes a term, and returns a 'Dag' with the implicit
 -- sharing of the input data structure made explicit. If the sharing
@@ -106,7 +105,6 @@ newtype TermPair f i = TermPair {getTermPair :: (Bool, StableName (f (Term f) i)
 reifyDag :: HTraversable f => NatM IO (Term f) (Dag f)
 reifyDag m = mdo
   tabRef <- newIORef DH.empty
-  let _ = findNodes :: Term f i -> IO (Some (SName f))
   let findNodes (Term !j) = do
         st <- liftIO $ makeStableName j
         let stKey = SName st
@@ -115,22 +113,21 @@ reifyDag m = mdo
           Just (TermPair (single,f)) | single -> writeIORef tabRef (DH.insert stKey (TermPair (False,f)) tab)
                                       >> return stKey
                           | otherwise -> return stKey
-          Nothing -> do _res <- hmapM findNodes j
+          Nothing -> do res <- hmapM findNodes j
                         tab <- readIORef tabRef
                         if DH.member stKey tab
                           then throwIO CyclicException
-                          else writeIORef tabRef (DH.insert stKey (TermPair (True, unsafeCoerce res)) tab)
+                          else writeIORef tabRef (DH.insert stKey (TermPair (True, res)) tab)
                                >> return stKey
   st <- findNodes m
   tab <- readIORef tabRef
   counterRef :: IORef Int <- newIORef 0
   edgesRef <- newIORef M.empty
   nodesRef <- newIORef DH.empty
-  let _ = run :: Some (SName f) -> IO (Some (Context f (K Int)))
-  let run (Some st) = do
+  let run st = do
         let stKey = SName st
         let TermPair (single,f) = tab DH.! stKey
-        if single then Term <$> hmapM run f
+        if single then Term <$> hmapM _run f
         else do
           nodes <- readIORef nodesRef
           case DH.lookup st nodes of
@@ -142,12 +139,13 @@ reifyDag m = mdo
               f' <- hmapM run f
               modifyIORef edgesRef (M.insert (K n) f')
               return (Hole . K $ K n)
-  Term root <- run st
+  Term root <- run (getSName st)
   edges <- readIORef edgesRef
   count <- readIORef counterRef
   return (Dag (unsafeCoerce root) edges count)
 
 
+    {-
 -- | This function unravels a given graph to the term it
 -- represents.
 

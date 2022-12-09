@@ -24,15 +24,16 @@ module Data.Comp.PAG.Internal
     ) where
 
 
-import Data.Comp.Mapping
-import Data.Comp.Term
+import Data.Comp.Multi.Mapping
+import Data.Comp.Multi.Term
 import Data.Comp.Multi.Projection
-import Data.Comp.AG.Internal as I (explicit) 
+import Data.Comp.Multi.HFunctor
+import Data.Comp.Multi.AG.Internal as I (explicit, (:=>:) )
 
 -- | This function provides access to attributes of the immediate
 -- children of the current node.
 
-below :: (?below :: child -> q a, p :< q) => child -> p a
+below :: (?below :: child :=>: q a, p :< q) => child -> p a
 below = pr . ?below
 
 -- | This function provides access to attributes of the current node
@@ -46,8 +47,9 @@ above = pr ?above
 -- synthesised attribute that is defined by the semantic function into
 -- the available attributes.
 
-type Syn' f p q g = forall child a . (?below :: child -> p a, ?above :: p a) => f child -> q (Context g a)
+type Syn' f p q g = forall child a . (?below :: child :=>: p a, ?above :: p a) => f child :-> q (Context g a)
 
+    {-
 -- | The type of semantic functions for synthesised attributes.
 type Syn  f p q g = (q :< p) => Syn' f p q g
 
@@ -97,3 +99,4 @@ prodInh sp sq t = prodMapWith (:*:) (fmap Hole above) (fmap Hole above) (sp t) (
 (>*<) :: (p :< c, q :< c, Functor p, Functor q)
          => Inh f c p g -> Inh f c q g -> Inh f c (p:*:q) g
 (>*<) = prodInh
+-}

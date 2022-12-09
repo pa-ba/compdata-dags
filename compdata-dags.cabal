@@ -17,13 +17,11 @@ Build-Type:             Simple
 Cabal-Version:          >=1.9.2
 bug-reports:            https://github.com/pa-ba/compdata-dags/issues
 
-
 extra-source-files:
   -- test files
   tests/Test/*.hs
   -- example files
   examples/Examples/*.hs
-
 
 library
   Exposed-Modules:      Data.Comp.AG
@@ -35,7 +33,7 @@ library
                         Data.Comp.AG.Internal
                         Data.Comp.PAG.Internal
   Build-Depends:	base >= 4.7, base < 5, compdata >= 0.10, unordered-containers, 
-                        mtl, containers, vector
+                        mtl, containers, vector, hashable, dependent-map, dependent-sum, dependent-hashmap, prim-uniq, some
   hs-source-dirs:	src
   ghc-options:          -W
 
@@ -46,7 +44,7 @@ Test-Suite test
   hs-source-dirs:	tests examples src
   Build-Depends:        base >= 4.7, base < 5, compdata >= 0.10, unordered-containers, 
                         mtl, containers, vector, test-framework-hunit, HUnit, test-framework,
-                        QuickCheck >= 2 && < 2.8, test-framework-quickcheck2 >= 0.3
+                        QuickCheck >= 2, test-framework-quickcheck2 >= 0.3
   Other-Modules:        Data.Comp.AG
                         Data.Comp.AG.Internal
                         Data.Comp.Dag
