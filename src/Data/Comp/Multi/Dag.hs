@@ -32,8 +32,8 @@ module Data.Comp.Multi.Dag
     , reifyDag
     , unravel
     --, bisim
-    --, iso
-    --, strongIso
+    , iso
+    , strongIso
     ) where
 
 import Control.Exception.Base
@@ -42,13 +42,10 @@ import Data.Comp.Multi.Dag.Internal
 import Data.Comp.Multi.Equality
 import Data.Comp.Multi.Term
 import Data.Comp.Multi.HFunctor
-import Data.Comp.Multi.HFoldable (HFoldable)
 import qualified Data.Dependent.HashMap as DH
---import Data.IntMap
---import qualified Data.IntMap as IntMap
 import Data.IORef
+import Data.Comp.Multi.HFoldable
 import Data.Comp.Multi.HTraversable
-import qualified Data.Traversable as Traversable
 import Data.Typeable
 import System.Mem.StableName
 
@@ -62,7 +59,6 @@ import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
 import qualified Data.Dependent.Map as M
 import qualified Data.Dependent.Sum as S
-import Data.Coerce
 import Unsafe.Coerce
 import Data.GADT.Compare
 import Data.Type.Equality
@@ -145,7 +141,7 @@ reifyDag m = do
               writeIORef nodesRef (DH.insert stKey (K n) nodes)
               f' <- hmapM (run . getSName) f
               modifyIORef edgesRef (M.insert (K n) f')
-              return (Hole $ coerce n)
+              return (Hole $ K n)
   Term root <- run (getSName st)
   edges <- readIORef edgesRef
   count <- readIORef counterRef
@@ -185,21 +181,22 @@ bisim Dag {root=r1,edges=e1}  Dag {root=r2,edges=e2} = runF r1 r2
                          Just l -> all @[] (\(E x, E y) -> run x $ unsafeCoerce y) l
                        else False
 
+-}
 
 -- | Checks whether the two given DAGs are isomorphic.
 
-iso :: (HTraversable f, HFoldable f, EqHF f) => Dag f :=> Dag f :=> Bool
-iso g1 g2 = checkIso heqMod (flatten g1) (flatten g2)
+iso :: (HTraversable f, HFoldable f, EqHF f) => forall i . Dag f i -> Dag f i -> Bool
+iso g1 g2 = checkIso (fmap (fmap (fmap $ \(E (K x), E ( K y)) -> (K x, K y))) . heqMod) (flatten g1) (flatten g2)
 
 
 -- | Checks whether the two given DAGs are strongly isomorphic, i.e.
 --   their internal representation is the same modulo renaming of
 --   nodes.
 
-strongIso :: (HFunctor f, HFoldable f, EqHF f) => Dag f :=> Dag f :=> Bool
+strongIso :: (HFunctor f, HFoldable f, EqHF f) => forall i . Dag f i -> Dag f i -> Bool
 strongIso Dag {root=r1,edges=e1,nodeCount=nx1}
           Dag {root=r2,edges=e2,nodeCount=nx2}
-              = checkIso checkEq (r1,e1,nx1) (r2,e2,nx2)
+              = checkIso (fmap (fmap (fmap $ \(E (K x), E (K y)) -> (K x, K y))) . checkEq) (r1,e1,nx1) (r2,e2,nx2)
     where checkEq t1 t2 = heqMod (Term t1) (Term t2)
 
 
@@ -207,42 +204,42 @@ strongIso Dag {root=r1,edges=e1,nodeCount=nx1}
 -- | This function flattens the internal representation of a DAG. That
 -- is, it turns the nested representation of edges into single layers.
 
-flatten :: forall f . HTraversable f => forall i . Dag f i -> (f Node i, M.DMap Node (f Node), Int)
+flatten :: forall f i . HTraversable f => Dag f i -> (f Node i, M.DMap Node (f Node), Int)
 flatten Dag {root,edges,nodeCount} = runST run where
-    run :: forall s i . ST s (f Node i, M.DMap Node (f Node), Int)
+    run :: forall s . ST s (f Node i, M.DMap Node (f Node), Int)
     run = do
       count <- newSTRef 0
       nMap :: Vec.MVector s (Maybe (Node i)) <- MVec.new nodeCount
       MVec.set nMap Nothing
       newEdges <- newSTRef M.empty
-      let build :: Context f Node i -> ST s (Node i)
+      let build :: forall j . Context f Node j -> ST s (Node j)
           build (Hole n) = mkNode (unK n)
           build (Term t) = do
             n' <- readSTRef count
             writeSTRef count $! (n'+1)
             t' <- hmapM build t
-            modifySTRef newEdges (M.insert n' t')
-            return n'
+            modifySTRef newEdges (M.insert (K n') t')
+            return $ K n'
+          mkNode :: forall j . Int -> ST s (Node j)
           mkNode n = do
             mn' <- MVec.unsafeRead nMap n
             case mn' of
-              Just n' -> return n'
+              Just (K n') -> return $ K n'
               Nothing -> do n' <- readSTRef count
                             writeSTRef count $! (n'+1)
-                            MVec.unsafeWrite nMap n (Just n')
-                            return n'
-          buildF (n,t) = do
-            n' <- mkNode n
-            t' <- Traversable.mapM build t
+                            MVec.unsafeWrite nMap n (Just $ K n')
+                            return $ K n'
+          buildF (n S.:=> t) = do
+            n' <- mkNode $ unK n
+            t' <- hmapM build t
             modifySTRef newEdges (M.insert n' t')
-      root' <- Traversable.mapM build root
-      mapM_ buildF $ M.toList edges
+      root' <- hmapM build root
+      fmap void $ mapM buildF $ M.toList edges
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef count
       return (root', edges', nodeCount')
 
 
-                       -}
 
 -- | Checks whether the two given dag representations are
 -- isomorphic. This function is polymorphic in the representation of
@@ -251,9 +248,9 @@ flatten Dag {root,edges,nodeCount} = runST run where
 -- of outgoing nodes the two edges point to. Otherwise the function
 -- returns 'Nothing'.
 
-checkIso :: (e i -> e i -> Maybe [(Node i,Node i)])
+checkIso :: (e i -> e j -> Maybe [(Node i,Node j)])
          -> (e i, M.DMap Node e, Int)
-         -> (e i, M.DMap Node e, Int) -> Bool
+         -> (e j, M.DMap Node e, Int) -> Bool
 checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
    run :: ST s Bool
    run = do
