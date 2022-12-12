@@ -20,7 +20,7 @@
 
 module Data.Comp.Multi.AG
     ( runAG
-    --, runRewrite
+    , runRewrite
     , module I
     )  where
 
@@ -29,6 +29,7 @@ import qualified Data.Comp.Multi.AG.Internal as I hiding (explicit)
 import Data.Comp.Multi.Algebra
 import Data.Comp.Multi.Mapping as I
 import Data.Comp.Multi.Term
+import Data.Comp.Multi.Ops
 import Data.Comp.Multi.HFunctor
 import Data.Comp.Multi.Projection as I
 
@@ -70,13 +71,15 @@ runRewrite :: forall f g u d i . (HTraversable f, HFunctor g)
 runRewrite up down trans dinit t = res where
     res@(uFin,_) = run dFin t
     dFin = dinit uFin
-    run :: d -> Term f i -> (u, Term g i)
+    run :: forall j . d -> Term f j -> (u, Term g j)
     run d (Term t) = (u,t'') where
-        t' = hfmap _bel $ number t
+        t' :: f (Numbered (K (u, d) :*: Term g)) j
+        t' = hfmap bel $ number t
+        bel :: forall j . Numbered (Term f) j -> Numbered (K (u,d) :*: Term g) j
         bel (Numbered i s) =
             let d' = lookupNumMap d i m
                 (u', s') = run d' s
-            in Numbered i ((u', d'),s')
-        m = undefined --explicit down (u,d) (fst . unNumbered) t'
-        u = undefined --explicit up (u,d) (fst . unNumbered) t'
-        t'' = undefined --appCxt $ fmap (snd . unNumbered) $ explicit trans (u,d) (fst . unNumbered) t'
+            in Numbered i $ K (u', d') :*: s'
+        m = explicit down (u,d) (unK . ffst . unNumbered) t'
+        u = explicit up (u,d) (unK . ffst . unNumbered) t'
+        t'' = appCxt $ hfmap (fsnd . unNumbered) $ explicit trans (u,d) (unK .  ffst . unNumbered) t'

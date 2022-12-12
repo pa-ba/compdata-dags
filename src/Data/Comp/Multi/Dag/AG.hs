@@ -4,6 +4,7 @@
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE RecursiveDo         #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators       #-}
 
 
 --------------------------------------------------------------------------------
@@ -26,23 +27,26 @@
 
 module Data.Comp.Multi.Dag.AG
     ( runAG
-    , runRewrite
+    --, runRewrite
     , module I
     ) where
 
 import Control.Monad.ST
 import Control.Monad.State
-import Data.Comp.AG.Internal
-import qualified Data.Comp.AG.Internal as I hiding (explicit)
-import Data.Comp.Dag
-import Data.Comp.Dag.Internal
-import Data.Comp.Mapping as I
-import Data.Comp.Projection as I
-import Data.Comp.Term
-import qualified Data.IntMap as IntMap
+import Data.Comp.Multi.AG.Internal
+import qualified Data.Comp.Multi.AG.Internal as I hiding (explicit)
+import Data.Comp.Multi.Dag
+import Data.Comp.Multi.Dag.Internal
+import Data.Comp.Multi.Mapping as I
+import Data.Comp.Multi.Projection as I
+import Data.Comp.Multi.Term
+import qualified Data.Dependent.Map as M
+import qualified Data.Dependent.Sum as S
 import Data.Maybe
 import Data.STRef
 import qualified Data.Traversable as Traversable
+import Data.Comp.Multi.HFunctor
+import Data.Comp.Multi.HTraversable
 import Data.Vector (Vector,MVector)
 import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
@@ -50,12 +54,12 @@ import qualified Data.Vector.Generic.Mutable as MVec
 -- | This function runs an attribute grammar on a dag. The result is
 -- the (combined) synthesised attribute at the root of the dag.
 
-runAG :: forall f d u .Traversable f
+runAG :: forall f d u i . HTraversable f
     => (d -> d -> d)   -- ^ resolution function for inherited attributes
     -> Syn' f (u,d) u  -- ^ semantic function of synthesised attributes
     -> Inh' f (u,d) d  -- ^ semantic function of inherited attributes
     -> (u -> d)        -- ^ initialisation of inherited attributes
-    -> Dag f           -- ^ input dag
+    -> Dag f i         -- ^ input dag
     -> u
 runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
     uFin = runST runM
@@ -72,23 +76,24 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
       let -- Runs the AG on an edge with the given input inherited
           -- attribute value and produces the output synthesised
           -- attribute value.
-          run :: d -> f (Context f Node) -> ST s u
+          run :: d -> f (Context f Node) :=> ST s u
           run d t = mdo
              -- apply the semantic functions
-             let u = explicit syn (u,d) unNumbered result
-                 m = explicit inh (u,d) unNumbered result
+             let u = explicit syn (u,d) (unK . unNumbered) result
+                 m = explicit inh (u,d) (unK . unNumbered) result
                  -- recurses into the child nodes and numbers them
-                 run' :: Context f Node -> ST s (Numbered (u,d))
+                 run' :: forall j . Context f Node j -> ST s (Numbered (K (u,d)) j)
                  run' s = do i <- readSTRef count
                              writeSTRef count $! (i+1)
                              let d' = lookupNumMap d i m
                              u' <- runF d' s -- recurse
-                             return (Numbered i (u',d'))
-             result <- Traversable.mapM run' t
+                             return (Numbered i $ K (u',d'))
+             result :: f (Numbered (K (u,d))) i
+             result <- hmapM (_ . run') t
              return u
           -- recurses through the tree structure
-          runF :: d -> Context f Node -> ST s u
-          runF d (Hole x) = do
+          runF :: d -> Context f Node :=> ST s u
+          runF d (Hole (K x)) = do
              -- we found a node: update the mapping for inherited
              -- attribute values
              old <- MVec.unsafeRead dmap x
@@ -106,13 +111,14 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
       -- first apply to the root
       u <- run dFin root
       -- then apply to the edges
-      mapM_ iter (IntMap.toList edges)
+      mapM_ iter (M.toList edges)
       -- finalise the mappings for attribute values
       dmapFin <- Vec.unsafeFreeze dmap
       umapFin <- Vec.unsafeFreeze umap
       return u
 
 
+    {-
 
 -- | This function runs an attribute grammar with rewrite function on
 -- a dag. The result is the (combined) synthesised attribute at the
@@ -245,3 +251,4 @@ relabelNodes root edges nodeCount = runST run where
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef curNode
       return Dag {edges = edges', root = root', nodeCount = nodeCount'}
+      -}
