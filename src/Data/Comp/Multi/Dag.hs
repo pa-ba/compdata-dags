@@ -31,7 +31,7 @@ module Data.Comp.Multi.Dag
     , termTree
     , reifyDag
     , unravel
-    --, bisim
+    , bisim
     , iso
     , strongIso
     ) where
