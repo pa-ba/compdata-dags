@@ -5,10 +5,11 @@
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE NamedFieldPuns       #-}
 {-# LANGUAGE RankNTypes           #-}
-{-# LANGUAGE RecursiveDo          #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeApplications     #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 
 --------------------------------------------------------------------------------
@@ -28,8 +29,8 @@
 module Data.Comp.Multi.Dag
     ( Dag
     , termTree
-    --, reifyDag
-    --, unravel
+    , reifyDag
+    , unravel
     --, bisim
     --, iso
     --, strongIso
@@ -53,7 +54,6 @@ import System.Mem.StableName
 
 import Control.Monad.ST
 import Data.Comp.Multi.Show
-import Data.Comp.Multi.HTraversable
 import Data.List
 import Data.STRef
 import Data.Some
@@ -62,12 +62,14 @@ import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
 import qualified Data.Dependent.Map as M
 import qualified Data.Dependent.Sum as S
+import Data.Coerce
 import Unsafe.Coerce
+import Data.GADT.Compare
+import Data.Type.Equality
 
 instance Show (Node a) where
     show (K i) = show i
 
-type IntMap = M.DMap Node
 
 instance (ShowHF f, HFunctor f) => Show (Dag f i)
   where
@@ -95,17 +97,21 @@ newtype SName f i = SName {getSName :: StableName (f (Term f) i)}
 instance Hashable (SName f i) where
     hashWithSalt i = hashWithSalt 239 . hashWithSalt i . getSName
 instance Hashable (Some (SName f)) where
-    hashWithSalt i (Some x) = hashWithSalt 890 $ hashWithSalt i x
+    hashWithSalt i (Some x) = hashWithSalt 789 $ hashWithSalt i x
+instance GEq (SName f) where
+    a `geq` b = if getSName a == (unsafeCoerce $ getSName b) then Just $ unsafeCoerce Refl else Nothing
 newtype TermPair f i = TermPair {getTermPair :: (Bool, f (SName f) i)}
 
 -- | This function takes a term, and returns a 'Dag' with the implicit
 -- sharing of the input data structure made explicit. If the sharing
 -- structure of the term is cyclic an exception of type
 -- 'CyclicException' is thrown.
-reifyDag :: HTraversable f => NatM IO (Term f) (Dag f)
-reifyDag m = mdo
+--reifyDag :: HTraversable f => NatM IO (Term f) (Dag f)
+reifyDag :: forall f. (GEq (f (Term f)), HTraversable f) => forall i . Term f i -> IO (Dag f i)
+reifyDag m = do
   tabRef <- newIORef DH.empty
-  let findNodes (Term !j) = do
+  let findNodes :: forall j. Term f j -> IO (SName f j)
+      findNodes (Term !j) = do
         st <- liftIO $ makeStableName j
         let stKey = SName st
         tab <- readIORef tabRef
@@ -124,37 +130,38 @@ reifyDag m = mdo
   counterRef :: IORef Int <- newIORef 0
   edgesRef <- newIORef M.empty
   nodesRef <- newIORef DH.empty
-  let run st = do
+  let run :: forall j. StableName (f (Term f) j) -> IO (Cxt Hole f (K Int) j)
+      run st = do
         let stKey = SName st
         let TermPair (single,f) = tab DH.! stKey
-        if single then Term <$> hmapM _run f
+        if single then Term <$> hmapM (run . getSName) f
         else do
           nodes <- readIORef nodesRef
-          case DH.lookup st nodes of
-            Just n -> return (Hole $ K n)
+          case DH.lookup stKey nodes of
+            Just n -> return (Hole n)
             Nothing -> do
               n <- readIORef counterRef
               writeIORef counterRef $! (n+1)
-              writeIORef nodesRef (DH.insert st (K n) nodes)
-              f' <- hmapM run f
+              writeIORef nodesRef (DH.insert stKey (K n) nodes)
+              f' <- hmapM (run . getSName) f
               modifyIORef edgesRef (M.insert (K n) f')
-              return (Hole . K $ K n)
+              return (Hole $ coerce n)
   Term root <- run (getSName st)
   edges <- readIORef edgesRef
   count <- readIORef counterRef
-  return (Dag (unsafeCoerce root) edges count)
+  return (Dag root edges count)
 
 
-    {-
 -- | This function unravels a given graph to the term it
 -- represents.
 
 unravel :: forall f. HFunctor f => Dag f :-> Term f
-unravel Dag {edges, root} = Term $ build <$> root
+unravel Dag {edges, root} = Term $ hfmap build root
     where build :: forall i . Context f Node i -> Term f i
-          build (Term t) = Term $ build <$> t
-          build (Hole n) = Term $ build <$> edges M.! n
+          build (Term t) = Term $ hfmap build t
+          build (Hole n) = Term . hfmap build $ edges M.! n
 
+    {-
 -- | Checks whether two dags are bisimilar. In particular, we have
 -- the following equality
 --
@@ -164,23 +171,25 @@ unravel Dag {edges, root} = Term $ build <$> root
 --
 -- That is, two dags are bisimilar iff they have the same unravelling.
 
-bisim :: forall f . (EqHF f, HFunctor f, HFoldable f)  => Dag f :=> Dag f :=> Bool
+bisim :: forall f i . (EqHF f, HFunctor f, HFoldable f)  => Dag f i -> Dag f i -> Bool
 bisim Dag {root=r1,edges=e1}  Dag {root=r2,edges=e2} = runF r1 r2
-    where run :: forall i . (Context f Node i, Context f Node i) -> Bool
-          run (t1, t2) = runF (step e1 t1) (step e2 t2)
+    where run :: forall i j . (Context f Node i, Context f Node j) -> Bool
+          run (t1, t2) = case testEquality t1 t2 of Just _ -> runF (step e1 $ unsafeCoerce t1) (step e2 $ unsafeCoerce t2)
+                                                    Nothing -> False
           step :: Edges f -> Context f Node i -> f (Context f Node) i
-          step e (Hole n) = e IntMap.! n
+          step e (Hole n) = e M.! n
           step _ (Term t) = t
-          runF :: forall i . f (Context f Node) i -> f (Context f Node) i -> Bool
-          runF f1 f2 = case eqMod f1 f2 of
+          runF :: forall i j . f (Context f Node) i -> f (Context f Node) j -> Bool
+          runF f1 f2 = if testEquality f1 f2 == Just Refl then case heqMod f1 $ unsafeCoerce f2 of
                          Nothing -> False
-                         Just l -> all run l
+                         Just l -> all @[] (\(E x, E y) -> run x $ unsafeCoerce y) l
+                       else False
 
 
 -- | Checks whether the two given DAGs are isomorphic.
 
 iso :: (HTraversable f, HFoldable f, EqHF f) => Dag f :=> Dag f :=> Bool
-iso g1 g2 = checkIso eqMod (flatten g1) (flatten g2)
+iso g1 g2 = checkIso heqMod (flatten g1) (flatten g2)
 
 
 -- | Checks whether the two given DAGs are strongly isomorphic, i.e.
@@ -191,7 +200,7 @@ strongIso :: (HFunctor f, HFoldable f, EqHF f) => Dag f :=> Dag f :=> Bool
 strongIso Dag {root=r1,edges=e1,nodeCount=nx1}
           Dag {root=r2,edges=e2,nodeCount=nx2}
               = checkIso checkEq (r1,e1,nx1) (r2,e2,nx2)
-    where checkEq t1 t2 = eqMod (Term t1) (Term t2)
+    where checkEq t1 t2 = heqMod (Term t1) (Term t2)
 
 
 
@@ -233,7 +242,7 @@ flatten Dag {root,edges,nodeCount} = runST run where
       return (root', edges', nodeCount')
 
 
-     -}
+                       -}
 
 -- | Checks whether the two given dag representations are
 -- isomorphic. This function is polymorphic in the representation of
