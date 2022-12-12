@@ -3,12 +3,12 @@
 {-# LANGUAGE DoAndIfThenElse      #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE GADTs                #-}
+{-# LANGUAGE KindSignatures       #-}
 {-# LANGUAGE NamedFieldPuns       #-}
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeApplications     #-}
 {-# LANGUAGE TypeOperators        #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 
@@ -157,7 +157,6 @@ unravel Dag {edges, root} = Term $ hfmap build root
           build (Term t) = Term $ hfmap build t
           build (Hole n) = Term . hfmap build $ edges M.! n
 
-    {-
 -- | Checks whether two dags are bisimilar. In particular, we have
 -- the following equality
 --
@@ -169,19 +168,16 @@ unravel Dag {edges, root} = Term $ hfmap build root
 
 bisim :: forall f i . (EqHF f, HFunctor f, HFoldable f)  => Dag f i -> Dag f i -> Bool
 bisim Dag {root=r1,edges=e1}  Dag {root=r2,edges=e2} = runF r1 r2
-    where run :: forall i j . (Context f Node i, Context f Node j) -> Bool
-          run (t1, t2) = case testEquality t1 t2 of Just _ -> runF (step e1 $ unsafeCoerce t1) (step e2 $ unsafeCoerce t2)
-                                                    Nothing -> False
-          step :: Edges f -> Context f Node i -> f (Context f Node) i
+    where run :: forall j k . (Context f Node j, Context f Node k) -> Bool
+          run (t1, t2) = runF (step e1 t1) (step e2 t2)
+          step :: forall j . Edges f -> Context f Node j -> f (Context f Node) j
           step e (Hole n) = e M.! n
           step _ (Term t) = t
-          runF :: forall i j . f (Context f Node) i -> f (Context f Node) j -> Bool
-          runF f1 f2 = if testEquality f1 f2 == Just Refl then case heqMod f1 $ unsafeCoerce f2 of
+          runF :: forall j k . f (Context f Node) j -> f (Context f Node) k -> Bool
+          runF f1 f2 = case heqMod f1 f2 of
                          Nothing -> False
-                         Just l -> all @[] (\(E x, E y) -> run x $ unsafeCoerce y) l
-                       else False
+                         Just l -> all @[] (\(E x, E y) -> curry run x y) l
 
--}
 
 -- | Checks whether the two given DAGs are isomorphic.
 
