@@ -30,6 +30,7 @@ import Data.Comp.Multi.Projection
 import Data.Comp.Multi.HFunctor
 import Data.Comp.Multi.AG.Internal as I (explicit, (:=>:) )
 
+    {-
 -- | This function provides access to attributes of the immediate
 -- children of the current node.
 
@@ -49,7 +50,6 @@ above = pr ?above
 
 type Syn' f p q g = forall child a . (?below :: child :=>: p a, ?above :: p a) => f child :-> q (Context g a)
 
-    {-
 -- | The type of semantic functions for synthesised attributes.
 type Syn  f p q g = (q :< p) => Syn' f p q g
 
