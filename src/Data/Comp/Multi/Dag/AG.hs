@@ -46,10 +46,14 @@ import Data.Maybe
 import Data.STRef
 import qualified Data.Traversable as Traversable
 import Data.Comp.Multi.HFunctor
+import Data.Comp.Multi.HFoldable
 import Data.Comp.Multi.HTraversable
 import Data.Vector (Vector,MVector)
 import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
+
+newtype DPair f i = DPair {getDPair :: (K Int i, f (Context f Node) i)}
+type EPair f = E (DPair f)
 
 -- | This function runs an attribute grammar on a dag. The result is
 -- the (combined) synthesised attribute at the root of the dag.
@@ -88,8 +92,7 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
                              let d' = lookupNumMap d i m
                              u' <- runF d' s -- recurse
                              return (Numbered i $ K (u',d'))
-             result :: f (Numbered (K (u,d))) i
-             result <- hmapM (_ . run') t
+             result <- hmapM run' t
              return u
           -- recurses through the tree structure
           runF :: d -> Context f Node :=> ST s u
@@ -104,14 +107,15 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
              return (umapFin Vec.! x)
           runF d (Term t)  = run d t
           -- This function is applied to each edge
-          iter (n, t) = do
+          iter :: EPair f -> ST s ()
+          iter (E (DPair (n,t))) = do
             writeSTRef count 0  -- re-initialize counter
-            u <- run (fromJust $ dmapFin Vec.! n) t
-            MVec.unsafeWrite umap n u
+            u <- run (fromJust $ dmapFin Vec.! unK n) t
+            MVec.unsafeWrite umap (unK n) u
       -- first apply to the root
       u <- run dFin root
       -- then apply to the edges
-      mapM_ iter (M.toList edges)
+      mapM_ iter ((\(n S.:=> t) -> E $ DPair (n, t)) <$> M.toList edges)
       -- finalise the mappings for attribute values
       dmapFin <- Vec.unsafeFreeze dmap
       umapFin <- Vec.unsafeFreeze umap
