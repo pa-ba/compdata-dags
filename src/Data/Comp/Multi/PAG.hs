@@ -21,20 +21,21 @@
 --
 --------------------------------------------------------------------------------
 
-module Data.Comp.PAG
-    ( runPAG
-    , module I
+module Data.Comp.Multi.PAG
+    ( --runPAG
+    --, module I
     )  where
 
-import Data.Comp.PAG.Internal
-import qualified Data.Comp.PAG.Internal as I hiding (explicit)
-import Data.Comp.Algebra
-import Data.Comp.Mapping as I
-import Data.Comp.Term
+import Data.Comp.Multi.PAG.Internal
+import qualified Data.Comp.Multi.PAG.Internal as I hiding (explicit)
+import Data.Comp.Multi.Algebra
+import Data.Comp.Multi.Mapping as I
+import Data.Comp.Multi.Term
 import Data.Comp.Multi.Projection as I
 
 
 
+    {-
 
 -- | This function runs a parametric attribute grammar on a term. The
 -- result is the (combined) synthesised attribute at the root of the
@@ -57,3 +58,4 @@ runPAG up down dinit t = uFin where
             in Numbered i (run d' s :*: d')
         m = fmap (fmap appCxt) $ explicit down (u :*: d) unNumbered t'
         u = fmap appCxt $ explicit up (u :*: d) unNumbered t'
+        -}

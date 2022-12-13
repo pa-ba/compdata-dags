@@ -18,8 +18,8 @@
 --
 --------------------------------------------------------------------------------
 
-module Data.Comp.PAG.Internal 
-    ( module Data.Comp.PAG.Internal 
+module Data.Comp.Multi.PAG.Internal 
+    ( module Data.Comp.Multi.PAG.Internal 
     , module I
     ) where
 

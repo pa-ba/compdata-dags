@@ -29,13 +29,22 @@ library
                         Data.Comp.Dag
                         Data.Comp.Dag.AG
                         Data.Comp.Dag.PAG
+                        Data.Comp.Multi.AG
+                        Data.Comp.Multi.PAG
+                        Data.Comp.Multi.Dag
+                        Data.Comp.Multi.Dag.AG
+                        Data.Comp.Multi.Dag.PAG
   Other-Modules:        Data.Comp.Dag.Internal
                         Data.Comp.AG.Internal
                         Data.Comp.PAG.Internal
+                        Data.Comp.Multi.Dag.Internal
+                        Data.Comp.Multi.AG.Internal
+                        Data.Comp.Multi.PAG.Internal
   Build-Depends:	base >= 4.7, base < 5, compdata >= 0.10, unordered-containers, 
                         mtl, containers, vector, hashable, dependent-map, dependent-sum, dependent-hashmap, prim-uniq, some
   hs-source-dirs:	src
   ghc-options:          -W
+                        -fconstraint-solver-iterations=0
 
 
 Test-Suite test

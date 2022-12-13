@@ -28,20 +28,20 @@
 --------------------------------------------------------------------------------
 
 
-module Data.Comp.Dag.PAG
-    ( runPAG
-    , module I
+module Data.Comp.Multi.Dag.PAG
+    ( --runPAG
+    --, module I
     ) where
 
 import Control.Monad.ST
 
-import Data.Comp.Dag
-import Data.Comp.Dag.Internal
-import Data.Comp.Mapping as I
+import Data.Comp.Multi.Dag
+import Data.Comp.Multi.Dag.Internal
+import Data.Comp.Multi.Mapping as I
 import Data.Comp.Multi.Projection as I
-import Data.Comp.PAG.Internal
-import qualified Data.Comp.PAG.Internal as I hiding (explicit)
-import Data.Comp.Term
+import Data.Comp.Multi.PAG.Internal
+import qualified Data.Comp.Multi.PAG.Internal as I hiding (explicit)
+import Data.Comp.Multi.Term
 
 import qualified Data.IntMap as IntMap
 import Data.IntMap (IntMap)
@@ -59,6 +59,7 @@ import qualified Data.Vector.Generic.Mutable as MVec
 
 import Control.Monad.State
 
+    {-
 
 -- | This function runs an attribute grammar on a dag. The result is
 -- the (combined) synthesised attribute at the root of the dag.
@@ -202,3 +203,4 @@ relabelNodes root edges nodeCount = runST run where
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef curNode
       return Dag {edges = edges', root = root', nodeCount = nodeCount'}
+      -}
