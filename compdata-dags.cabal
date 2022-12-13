@@ -51,7 +51,7 @@ Test-Suite test
   Main-is:		RunTests.hs
   hs-source-dirs:	tests examples src
   Build-Depends:        base >= 4.7, base < 5, compdata >= 0.10, unordered-containers, 
-                        mtl, containers, vector, test-framework-hunit, HUnit, test-framework,
+                        mtl, containers, vector, hashable, dependent-map, dependent-sum, dependent-hashmap, prim-uniq, some, test-framework-hunit, HUnit, test-framework,
                         QuickCheck >= 2, test-framework-quickcheck2 >= 0.3
   Other-Modules:        Data.Comp.AG
                         Data.Comp.AG.Internal
@@ -70,6 +70,16 @@ Test-Suite test
                         Test.Dag
                         Test.Examples
                         Test.Utils
+                        Data.Comp.Multi.AG
+                        Data.Comp.Multi.AG.Internal
+                        Data.Comp.Multi.Dag
+                        Data.Comp.Multi.Dag.AG
+                        Data.Comp.Multi.Dag.Internal
+                        Data.Comp.Multi.Dag.PAG
+                        Data.Comp.Multi.PAG
+                        Data.Comp.Multi.PAG.Internal
+                        Examples.Multi.LeavesBelow
+                        Examples.Multi.Types
 
 source-repository head
   type:     git
