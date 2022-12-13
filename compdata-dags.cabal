@@ -44,7 +44,6 @@ library
                         mtl, containers, vector, hashable, dependent-map, dependent-sum, dependent-hashmap, prim-uniq, some
   hs-source-dirs:	src
   ghc-options:          -W
-                        -fconstraint-solver-iterations=0
 
 
 Test-Suite test
