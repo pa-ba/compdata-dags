@@ -31,7 +31,7 @@ import Data.Comp.Multi.Mapping as I
 import Data.Comp.Multi.Term
 import Data.Comp.Multi.Ops
 import Data.Comp.Multi.HFunctor
-import Data.Comp.Multi.Projection as I
+import qualified Data.Comp.Multi.Projection as I
 
 
 

@@ -80,6 +80,10 @@ Test-Suite test
                         Data.Comp.Multi.PAG.Internal
                         Examples.Multi.LeavesBelow
                         Examples.Multi.Types
+                        Examples.Multi.Repmin
+                        Test.Multi.Dag
+                        Test.Multi.Utils
+                        Test.Multi.Examples
 
 source-repository head
   type:     git

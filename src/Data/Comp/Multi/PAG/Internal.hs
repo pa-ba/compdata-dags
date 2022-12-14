@@ -19,8 +19,7 @@
 --------------------------------------------------------------------------------
 
 module Data.Comp.Multi.PAG.Internal 
-    ( module Data.Comp.Multi.PAG.Internal 
-    , module I
+    ( module Data.Comp.Multi.PAG.Internal , module I
     ) where
 
 
@@ -28,20 +27,20 @@ import Data.Comp.Multi.Mapping
 import Data.Comp.Multi.Term
 import Data.Comp.Multi.Projection
 import Data.Comp.Multi.HFunctor
-import Data.Comp.Multi.AG.Internal as I (explicit, (:=>:) )
+import Data.Comp.Multi.AG.Internal as I (explicit, (:=>:) (..))
 
-    {-
 -- | This function provides access to attributes of the immediate
 -- children of the current node.
 
-below :: (?below :: child :=>: q a, p :< q) => child -> p a
-below = pr . ?below
+below :: (?below :: child :=>: q a, p :< q) => child :=> p a
+below = pr . appHFun ?below
 
 -- | This function provides access to attributes of the current node
 
 above :: (?above :: q a, p :< q) => p a
 above = pr ?above
 
+    {-
 
 -- | The type of semantic functions for synthesised attributes. For
 -- defining semantic functions use the type 'Syn', which includes the
