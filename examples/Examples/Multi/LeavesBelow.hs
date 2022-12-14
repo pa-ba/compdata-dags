@@ -1,5 +1,6 @@
-{-# LANGUAGE TypeOperators  #-}
-{-# LANGUAGE ImplicitParams #-}
+{-# LANGUAGE TypeOperators    #-}
+{-# LANGUAGE GADTs            #-}
+{-# LANGUAGE ImplicitParams   #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes       #-}
 
@@ -10,12 +11,12 @@ import Data.Comp.Multi.Dag
 import qualified Data.Comp.Multi.Dag.AG as Dag
 import Data.Comp.Multi.Term
 import Data.Comp.Multi
+import Data.Comp.Projection
 import Examples.Multi.Types
 import Data.Set (Set)
 import qualified Data.Set as Set
 
 
-    {-
 leavesBelowI :: Inh IntTreeF atts Int
 leavesBelowI (Leaf _)      = empty
 leavesBelowI (Node t1 t2)  = t1 |-> d' & t2 |-> d'
@@ -35,4 +36,3 @@ leavesBelow d = runAG leavesBelowS leavesBelowI (const d)
 -- | As AG on dags
 leavesBelowG :: Int -> Dag IntTreeF :=> Set Int
 leavesBelowG d = Dag.runAG min leavesBelowS leavesBelowI (const d)
--}
