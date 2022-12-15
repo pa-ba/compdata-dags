@@ -26,6 +26,7 @@
 
 module Data.Comp.Dag.AG
     ( runAG
+    , runSynAG
     , runRewrite
     , module I
     ) where
@@ -112,6 +113,42 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
       umapFin <- Vec.unsafeFreeze umap
       return u
 
+-- | This function runs an attribute grammar with no inherited attributes on a dag. The result is
+-- the (combined) synthesised attribute at the root of the dag.
+
+runSynAG :: forall f u .Traversable f =>
+       Syn' f u u  -- ^ semantic function of synthesised attributes
+    -> Dag f           -- ^ input dag
+    -> u
+runSynAG syn Dag {edges,root,nodeCount} = runST runM where
+    runM :: forall s . ST s u
+    runM = mdo
+      -- allocate mapping from nodes to synthesised attribute values
+      umap <- MVec.new nodeCount
+      let -- Runs the AG on an edge with the given input inherited
+          -- attribute value and produces the output synthesised
+          -- attribute value.
+          run :: f (Context f Node) -> ST s u
+          run t = mdo
+             -- apply the semantic functions
+             let u = explicit syn u id result
+             result <- Traversable.mapM runF t
+             return u
+          -- recurses through the tree structure
+          runF :: Context f Node -> ST s u
+          runF (Hole x) = return (umapFin Vec.! x)
+          runF (Term t)  = run t
+          -- This function is applied to each edge
+          iter (n, t) = do
+            u <- run  t
+            MVec.unsafeWrite umap n u
+      -- first apply to the root
+      u <- run root
+      -- then apply to the edges
+      mapM_ iter (IntMap.toList edges)
+      -- finalise the mappings for attribute values
+      umapFin <- Vec.unsafeFreeze umap
+      return u
 
 
 -- | This function runs an attribute grammar with rewrite function on
@@ -190,10 +227,10 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
 -- | This function relabels the nodes of the given dag. Parts that are
 -- unreachable from the root are discarded. Instead of an 'IntMap',
 -- edges are represented by a 'Vector'.
-relabelNodes :: forall f . Traversable f 
+relabelNodes :: forall f . Traversable f
              => Context f Node
-             -> Vector (Cxt Hole f Int) 
-             -> Int 
+             -> Vector (Cxt Hole f Int)
+             -> Int
              -> Dag f
 relabelNodes root edges nodeCount = runST run where
     run :: ST s (Dag f)
@@ -214,7 +251,7 @@ relabelNodes root edges nodeCount = runST run where
              mnewNode <- MVec.unsafeRead newNodes node
              case mnewNode of
                Just newNode -> return newNode
-               Nothing -> 
+               Nothing ->
                    case edges Vec.! node of
                      Hole n -> do
                        -- We found an edge that just maps to another

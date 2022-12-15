@@ -132,8 +132,6 @@ runSynAG syn Dag {edges,root,nodeCount} = runST runM where
     runM = mdo
       -- allocate mapping from nodes to synthesised attribute values
       umap <- MVec.new nodeCount
-      -- allocate counter for numbering child nodes
-      count <- newSTRef 0
       let -- Runs the AG on an edge with the given input inherited
           -- attribute value and produces the output synthesised
           -- attribute value.
@@ -141,23 +139,15 @@ runSynAG syn Dag {edges,root,nodeCount} = runST runM where
           run t = mdo
              -- apply the semantic functions
              let u = explicit syn u unK result
-                 --m = explicit inh u unK result
-                 -- recurses into the child nodes and numbers them
-                 run' :: forall j . Context f Node j -> ST s (K u j)
-                 run' s = do i <- readSTRef count
-                             writeSTRef count $! (i+1)
-                             u' <- runF s -- recurse
-                             return $ K u'
-             result <- hmapM run' t
+             result <- hmapM runF t
              return u
           -- recurses through the tree structure
-          runF :: Context f Node :=> ST s u
-          runF (Hole (K x)) = return (umapFin Vec.! x)
-          runF (Term t)  = run t
+          runF :: forall j . Context f Node j -> ST s (K u j)
+          runF (Hole (K x)) = return . K $ umapFin Vec.! x
+          runF (Term t)     = K <$> run t
           -- This function is applied to each edge
           iter :: EPair f -> ST s ()
           iter (E (DPair (n,t))) = do
-            writeSTRef count 0  -- re-initialize counter
             u <- run  t
             MVec.unsafeWrite umap (unK n) u
       -- first apply to the root
