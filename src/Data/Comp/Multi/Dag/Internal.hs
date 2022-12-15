@@ -30,9 +30,11 @@ import Unsafe.Coerce
 type Node = K Int
 
 
+-- | Warning!  this GEq instance is not type-safe!  Do not use it!
 instance GEq Node where
     geq (K a) (K b) = if a==b then Just $ unsafeCoerce Refl else Nothing
 
+-- | Warning!  this GCompare instance is not type-safe!  Do not use it!
 instance GCompare Node where
     gcompare (K a) (K b) = case compare a b of 
         LT -> GLT
