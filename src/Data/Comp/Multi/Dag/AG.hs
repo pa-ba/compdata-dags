@@ -27,6 +27,7 @@
 
 module Data.Comp.Multi.Dag.AG
     ( runAG
+    , runSynAG
     , runRewrite
     , module I
     ) where
@@ -119,6 +120,53 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
       umapFin <- Vec.unsafeFreeze umap
       return u
 
+-- | This function runs an attribute grammar with no inherited attributes on a dag. The result is
+-- the (combined) synthesised attribute at the root of the dag.
+
+runSynAG :: forall f u i . HTraversable f =>
+       Syn' f u u  -- ^ semantic function of synthesised attributes
+    -> Dag f i     -- ^ input dag
+    -> u
+runSynAG syn Dag {edges,root,nodeCount} = runST runM where
+    runM :: forall s . ST s u
+    runM = mdo
+      -- allocate mapping from nodes to synthesised attribute values
+      umap <- MVec.new nodeCount
+      -- allocate counter for numbering child nodes
+      count <- newSTRef 0
+      let -- Runs the AG on an edge with the given input inherited
+          -- attribute value and produces the output synthesised
+          -- attribute value.
+          run :: f (Context f Node) :=> ST s u
+          run t = mdo
+             -- apply the semantic functions
+             let u = explicit syn u unK result
+                 --m = explicit inh u unK result
+                 -- recurses into the child nodes and numbers them
+                 run' :: forall j . Context f Node j -> ST s (K u j)
+                 run' s = do i <- readSTRef count
+                             writeSTRef count $! (i+1)
+                             u' <- runF s -- recurse
+                             return $ K u'
+             result <- hmapM run' t
+             return u
+          -- recurses through the tree structure
+          runF :: Context f Node :=> ST s u
+          runF (Hole (K x)) = return (umapFin Vec.! x)
+          runF (Term t)  = run t
+          -- This function is applied to each edge
+          iter :: EPair f -> ST s ()
+          iter (E (DPair (n,t))) = do
+            writeSTRef count 0  -- re-initialize counter
+            u <- run  t
+            MVec.unsafeWrite umap (unK n) u
+      -- first apply to the root
+      u <- run root
+      -- then apply to the edges
+      mapM_ iter ((\(n S.:=> t) -> E $ DPair (n, t)) <$> M.toList edges)
+      -- finalise the mappings for attribute values
+      umapFin <- Vec.unsafeFreeze umap
+      return u
 
 
 -- | This function runs an attribute grammar with rewrite function on
