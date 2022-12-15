@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators       #-}
 
 
 --------------------------------------------------------------------------------
@@ -20,6 +19,7 @@
 
 module Data.Comp.AG
     ( runAG
+    , runSynAG
     , runRewrite
     , module I
     )  where
@@ -48,12 +48,23 @@ runAG up down dinit t = uFin where
     dFin = dinit uFin
     run :: d -> Term f -> u
     run d (Term t) = u where
-        t' = fmap bel $ number t
+        t' = bel <$> number t
         bel (Numbered i s) =
             let d' = lookupNumMap d i m
             in Numbered i (run d' s, d')
         m = explicit down (u,d) unNumbered t'
         u = explicit up (u,d) unNumbered t'
+
+-- | This function runs an attribute grammar with no inherited attributes on a term. The result is
+-- the (combined) synthesised attribute at the root of the term.
+
+runSynAG :: forall f u . Traversable f
+      => Syn' f u u -- ^ semantic function of synthesised attributes
+      -> Term f         -- ^ input term
+      -> u
+runSynAG up t = run t where
+    run :: Term f -> u
+    run (Term t) = u where u = explicit up u id $ fmap run t
 
 -- | This function runs an attribute grammar with rewrite function on
 -- a term. The result is the (combined) synthesised attribute at the
@@ -70,11 +81,11 @@ runRewrite up down trans dinit t = res where
     dFin = dinit uFin
     run :: d -> Term f -> (u, Term g)
     run d (Term t) = (u,t'') where
-        t' = fmap bel $ number t
+        t' = bel <$> number t
         bel (Numbered i s) =
             let d' = lookupNumMap d i m
                 (u', s') = run d' s
             in Numbered i ((u', d'),s')
         m = explicit down (u,d) (fst . unNumbered) t'
         u = explicit up (u,d) (fst . unNumbered) t'
-        t'' = appCxt $ fmap (snd . unNumbered) $ explicit trans (u,d) (fst . unNumbered) t'
+        t'' = appCxt $ snd . unNumbered <$> explicit trans (u,d) (fst . unNumbered) t'

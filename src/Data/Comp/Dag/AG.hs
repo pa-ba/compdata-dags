@@ -122,9 +122,9 @@ runRewrite :: forall f g d u .(Traversable f, Traversable g)
     => (d -> d -> d)       -- ^ resolution function for inherited attributes
     -> Syn' f (u,d) u      -- ^ semantic function of synthesised attributes
     -> Inh' f (u,d) d      -- ^ semantic function of inherited attributes
-    -> Rewrite f (u, d) g  -- ^ initialisation of inherited attributes
-    -> (u -> d)            -- ^ input term
-    -> Dag f
+    -> Rewrite f (u, d) g  -- ^ rewrite function (stateful tree homomorphism)
+    -> (u -> d)            -- ^ initialisation of inherited attributes
+    -> Dag f               -- ^ input dag
     -> (u, Dag g)
 runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
     result@(uFin,_) = runST runM
