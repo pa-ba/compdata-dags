@@ -29,6 +29,7 @@ module Data.Comp.Multi.Dag.AG
     ( runAG
     , runSynAG
     , runRewrite
+    , runSynRewrite
     , module I
     ) where
 
@@ -208,7 +209,6 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
                              let d' = lookupNumMap d i m
                              K u' :*: t <- runF d' s
                              return (Numbered i (K (u',d') :*: t))
-             --let _ = result :: f (Numbered (K (u, d) :*: Context g Node)) j
              result <- hmapM run' t
              let t' = appCxt $ hfmap (fsnd . unNumbered) $ explicit rewr (u,d) (unK . ffst . unNumbered) result
              return (K u :*: t')
@@ -235,8 +235,53 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
       return (u, relabelNodes interRoot allEdgesFin nodeCount)
 
 
+-- | This function runs a synthesised attribute grammar with rewrite function on
+-- a dag. The result is the (combined) synthesised attribute at the
+-- root of the dag and the rewritten dag.
+
+runSynRewrite :: forall f g u i .(HTraversable f, HTraversable g) =>
+       Syn' f u u      -- ^ semantic function of synthesised attributes
+    -> Rewrite f u g  -- ^ rewrite function (stateful tree homomorphism)
+    -> Dag f i             -- ^ input dag
+    -> (u, Dag g i)
+runSynRewrite syn rewr Dag {edges,root,nodeCount} = runST runM where
+    runM :: forall s . ST s (u, Dag g i)
+    runM = mdo
+      -- allocate mapping from nodes to synthesised attribute values
+      umap <- MVec.new nodeCount
+      -- allocate vector to represent edges of the target DAG
+      allEdges <- MVec.new nodeCount
+      let -- This function is applied to each edge
+          iter :: EPair f -> ST s ()
+          iter (E (DPair (K node,s))) = do
+             K u :*: t <- run s
+             MVec.unsafeWrite umap node u
+             MVec.unsafeWrite allEdges node (E t)
+          -- Runs the AG on an edge with the given input inherited
+          -- attribute value and produces the output synthesised
+          -- attribute value along with the rewritten subtree.
+          run :: NatM (ST s) (f (Context f Node)) (K u :*: Context g Node)
+          run t = mdo
+             -- apply the semantic functions
+             let u = explicit syn u (unK . ffst) result
+             result <- hmapM runF t
+             let t' = appCxt $ hfmap fsnd $ explicit rewr u (unK . ffst) result
+             return (K u :*: t')
+          -- recurses through the tree structure
+          runF :: NatM (ST s) (Context f Node) (K u :*: Context g Node)
+          runF (Term t) = run t
+          runF (Hole x) = return $ K (umapFin Vec.! unK x) :*: Hole x
+      -- first apply to the root
+      K u :*: interRoot <- run root
+      -- then apply to the edges
+      mapM_ iter . fmap (\(k S.:=> v) -> E $ DPair (k,v)) $ M.toList edges
+      -- finalise the mappings for attribute values and target DAG
+      umapFin <- Vec.unsafeFreeze umap
+      allEdgesFin <- Vec.unsafeFreeze allEdges
+      return (u, relabelNodes interRoot allEdgesFin nodeCount)
+
 -- | This function relabels the nodes of the given dag. Parts that are
--- unreachable from the root are discarded. Instead of an 'IntMap',
+-- unreachable from the root are discarded. Instead of a 'DMap',
 -- edges are represented by a 'Vector'.
 relabelNodes :: forall f i . HTraversable f
              => Context f Node i
