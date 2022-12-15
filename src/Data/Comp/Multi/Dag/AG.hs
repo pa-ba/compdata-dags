@@ -32,7 +32,6 @@ module Data.Comp.Multi.Dag.AG
     ) where
 
 import Control.Monad.ST
-import Control.Monad.State
 import Data.Comp.Multi.AG.Internal
 import qualified Data.Comp.Multi.AG.Internal as I hiding (explicit)
 import Data.Comp.Multi.Dag
@@ -51,7 +50,7 @@ import Data.Vector (Vector,MVector)
 import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
 
-newtype DPair f i = DPair {getDPair :: (K Int i, f (Context f Node) i)}
+newtype DPair f i = DPair (K Int i, f (Context f Node) i)
 type EPair f = E (DPair f)
 
 -- | This function runs an attribute grammar on a dag. The result is
@@ -130,9 +129,9 @@ runRewrite :: forall f g d u i .(HTraversable f, HTraversable g)
     => (d -> d -> d)       -- ^ resolution function for inherited attributes
     -> Syn' f (u,d) u      -- ^ semantic function of synthesised attributes
     -> Inh' f (u,d) d      -- ^ semantic function of inherited attributes
-    -> Rewrite f (u, d) g  -- ^ initialisation of inherited attributes
-    -> (u -> d)            -- ^ input term
-    -> Dag f i
+    -> Rewrite f (u, d) g  -- ^ rewrite function (stateful tree homomorphism)
+    -> (u -> d)            -- ^ initialisation of inherited attributes
+    -> Dag f i             -- ^ input dag
     -> (u, Dag g i)
 runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
     result@(uFin,_) = runST runM
@@ -201,10 +200,10 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
 -- | This function relabels the nodes of the given dag. Parts that are
 -- unreachable from the root are discarded. Instead of an 'IntMap',
 -- edges are represented by a 'Vector'.
-relabelNodes :: forall f i . HTraversable f 
+relabelNodes :: forall f i . HTraversable f
              => Context f Node i
-             -> Vector (E (Cxt Hole f (K Int))) 
-             -> Int 
+             -> Vector (E (Cxt Hole f (K Int)))
+             -> Int
              -> Dag f i
 relabelNodes root edges nodeCount = runST run where
     run :: forall s . ST s (Dag f i)
@@ -225,7 +224,7 @@ relabelNodes root edges nodeCount = runST run where
              mnewNode <- MVec.unsafeRead newNodes $ unK node
              case mnewNode of
                Just newNode -> return $ K newNode
-               Nothing -> 
+               Nothing ->
                    case edges Vec.! unK node of
                      (E (Hole  (K n))) -> do
                        -- We found an edge that just maps to another

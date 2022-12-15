@@ -20,6 +20,7 @@
 
 module Data.Comp.Multi.AG
     ( runAG
+    , runSynAG
     , runRewrite
     , module I
     )  where
@@ -58,13 +59,25 @@ runAG up down dinit t = uFin where
         m = explicit down (u,d) (unK . unNumbered) t'
         u = explicit up (u,d) (unK . unNumbered) t'
 
+-- | This function runs an attribute grammar with no inherited attributes on a term. The result is
+-- the (combined) synthesised attribute at the root of the term.
+
+runSynAG :: forall f u i . (HFunctor f, HTraversable f)
+      => Syn' f u u -- ^ semantic function of synthesised attributes
+      -> Term f i       -- ^ input term
+      -> u
+runSynAG up t = run t where
+    run :: Term f :=> u
+    run (Term t) = u where u = explicit up u unK $ hfmap (K . run) t
+
 -- | This function runs an attribute grammar with rewrite function on
 -- a term. The result is the (combined) synthesised attribute at the
 -- root of the term and the rewritten term.
 
 runRewrite :: forall f g u d i . (HTraversable f, HFunctor g)
-           => Syn' f (u,d) u -> Inh' f (u,d) d -- ^ semantic function of synthesised attributes
-           -> Rewrite f (u,d) g                -- ^ semantic function of inherited attributes
+           => Syn' f (u,d) u                   -- ^ semantic function of synthesised attributes
+           -> Inh' f (u,d) d                   -- ^ semantic function of inherited attributes
+           -> Rewrite f (u,d) g                -- ^ rewrite function (stateful tree homomorphism)
            -> (u -> d)                         -- ^ initialisation of inherited attributes
            -> Term f i                         -- ^ input term
            -> (u, Term g i)
