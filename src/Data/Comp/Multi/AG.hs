@@ -22,6 +22,7 @@ module Data.Comp.Multi.AG
     ( runAG
     , runSynAG
     , runRewrite
+    , runSynRewrite
     , module I
     )  where
 
@@ -95,4 +96,25 @@ runRewrite up down trans dinit t = res where
             in Numbered i $ K (u', d') :*: s'
         m = explicit down (u,d) (unK . ffst . unNumbered) t'
         u = explicit up (u,d) (unK . ffst . unNumbered) t'
-        t'' = appCxt $ hfmap (fsnd . unNumbered) $ explicit trans (u,d) (unK .  ffst . unNumbered) t'
+        t'' = appCxt . hfmap (fsnd . unNumbered) $ explicit trans (u,d) (unK .  ffst . unNumbered) t'
+
+-- | This function runs a synthesised attribute grammar with rewrite function on
+-- a term. The result is the (combined) synthesised attribute at the
+-- root of the term and the rewritten term.
+
+runSynRewrite :: forall f g u i . (HTraversable f, HFunctor g)
+           => Syn' f u u                       -- ^ semantic function of synthesised attributes
+           -> Rewrite f u g                    -- ^ rewrite function (stateful tree homomorphism)
+           -> Term f i                         -- ^ input term
+           -> (u, Term g i)
+runSynRewrite up trans t = run t where
+    run :: forall j . Term f j -> (u, Term g j)
+    run (Term t) = (u,t'') where
+        t' :: f (K u :*: Term g) j
+        t' = hfmap bel t
+        bel :: forall j . Term f j -> (K u :*: Term g) j
+        bel s =
+            let (u', s') = run s
+            in K u' :*: s'
+        u = explicit up u (unK . ffst) t'
+        t'' = appCxt . hfmap fsnd $ explicit trans u (unK .  ffst) t'
