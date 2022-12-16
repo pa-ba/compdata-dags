@@ -28,6 +28,7 @@
 
 module Data.Comp.Multi.Dag
     ( Dag
+    , HFgeq (..)
     , termTree
     , reifyDag
     , unravel
@@ -50,6 +51,7 @@ import Data.Typeable
 import System.Mem.StableName
 
 import Control.Monad.ST
+import Data.Comp.Multi.Ops
 import Data.Comp.Multi.Show
 import Data.List
 import Data.STRef
@@ -61,11 +63,28 @@ import qualified Data.Dependent.Map as M
 import qualified Data.Dependent.Sum as S
 import Unsafe.Coerce
 import Data.GADT.Compare
-import Data.Type.Equality
+
+-- | This class makes Term f and f (Term f) instances of GEq, so they can be used in dags.
+class HFgeq (f :: (* ->  *) -> * -> *) where
+    -- | Like geq, this function compares both value and type.
+    hfgeq :: GEq a => f a i -> f a j -> Maybe (i :~: j)
+
+instance (HFgeq f, HFgeq g) => HFgeq (f :+: g) where
+    Inl x `hfgeq` Inl y = case x `hfgeq` y of Just Refl -> Just Refl
+                                              Nothing   -> Nothing
+    Inr x `hfgeq` Inr y = case x `hfgeq` y of Just Refl -> Just Refl
+                                              Nothing   -> Nothing
+    _ `hfgeq` _ = Nothing
+
+instance {-# OVERLAPPING #-} HFgeq f => GEq (Term f) where
+    Term x `geq` Term y = x `geq` y
+
+instance (HFgeq f, GEq a) => GEq (f a) where
+    x `geq` y = x `hfgeq` y
+
 
 instance Show (Node a) where
     show (K i) = show i
-
 
 instance (ShowHF f, HFunctor f) => Show (Dag f i)
   where

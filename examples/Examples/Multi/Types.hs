@@ -22,13 +22,12 @@ data IntTreeF a i where
     Leaf :: Int -> IntTreeF a Int
     Node :: a i -> a j -> IntTreeF a (i,j)
 
-instance GEq (IntTreeF (Term IntTreeF)) where
-    (Leaf x) `geq` (Leaf y) = if x==y then Just Refl else Nothing
-    (Node (Term x) (Term x')) `geq` (Node (Term y) (Term y')) = do x `geq` y
-                                                                   x' `geq` y'
-                                                                   return $ unsafeCoerce Refl
-    _ `geq` _ = Nothing
-
+instance HFgeq IntTreeF where
+    Leaf x `hfgeq` Leaf y = if x==y then Just Refl else Nothing
+    Node x y `hfgeq` Node x' y' = case x `geq` x' of Just Refl -> case y `geq` y' of Just Refl -> Just Refl
+                                                                                     Nothing -> Nothing
+                                                     Nothing -> Nothing
+    _ `hfgeq` _ = Nothing
 
 $(derive [smartConstructors, makeShowHF, makeEqHF, makeHFunctor, makeHFoldable, makeHTraversable] [''IntTreeF])
 
