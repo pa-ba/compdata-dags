@@ -70,18 +70,22 @@ class HFgeq (f :: (* ->  *) -> * -> *) where
     hfgeq :: GEq a => f a i -> f a j -> Maybe (i :~: j)
 
 instance (HFgeq f, HFgeq g) => HFgeq (f :+: g) where
-    Inl x `hfgeq` Inl y = case x `hfgeq` y of Just Refl -> Just Refl
-                                              Nothing   -> Nothing
-    Inr x `hfgeq` Inr y = case x `hfgeq` y of Just Refl -> Just Refl
-                                              Nothing   -> Nothing
+    Inl x `hfgeq` Inl y = case x `hfgeq` y of
+                            Just Refl -> Just Refl
+                            Nothing   -> Nothing
+    Inr x `hfgeq` Inr y = case x `hfgeq` y of
+                            Just Refl -> Just Refl
+                            Nothing   -> Nothing
     _ `hfgeq` _ = Nothing
+
+instance (HFgeq f, Eq q) => HFgeq (f :&: q) where
+    (x :&: q) `hfgeq` (y :&: r) = if q==r then x `hfgeq` y else Nothing
 
 instance {-# OVERLAPPING #-} HFgeq f => GEq (Term f) where
     Term x `geq` Term y = x `geq` y
 
 instance (HFgeq f, GEq a) => GEq (f a) where
     x `geq` y = x `hfgeq` y
-
 
 instance Show (Node a) where
     show (K i) = show i
