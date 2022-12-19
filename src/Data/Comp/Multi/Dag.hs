@@ -35,7 +35,7 @@ module Data.Comp.Multi.Dag
     , iso
     , strongIso
 
-    , Node
+    , Node (..)
     , getNode
     , SName (..)
     , TermPair (..)
