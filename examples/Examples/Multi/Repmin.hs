@@ -23,7 +23,7 @@ globMin = let MinI i = above in i
 
 minS ::  Syn IntTreeF atts MinS
 minS (Leaf i)    =  MinS i
-minS (Node a b)  =  min (below a) (below b)
+minS (TreeNode a b)  =  min (below a) (below b)
 
 minI :: Inh IntTreeF atts MinI
 minI _ = empty
@@ -37,7 +37,7 @@ repminG' = snd . Dag.runRewrite const minS minI rep' init
 
 rep' ::  (MinI :< atts) => Rewrite IntTreeF atts IntTreeF
 rep' (Leaf _)    =  iLeaf globMin
-rep' (Node a b)  =  iNode (Hole a) (Hole b)
+rep' (TreeNode a b)  =  iTreeNode (Hole a) (Hole b)
 
 repmin' :: Term IntTreeF :-> Term IntTreeF
 repmin' = snd . runRewrite minS minI rep' init

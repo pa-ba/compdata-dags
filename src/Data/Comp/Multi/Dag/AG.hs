@@ -44,6 +44,7 @@ import Data.Comp.Multi.Term
 import qualified Data.Dependent.Map as M
 import qualified Data.Dependent.Sum as S
 import Data.Maybe
+import Data.Typeable
 import Data.STRef
 import Data.Comp.Multi.Algebra
 import Data.Comp.Multi.HFunctor
@@ -51,8 +52,9 @@ import Data.Comp.Multi.HTraversable
 import Data.Vector (Vector,MVector)
 import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
+import Unsafe.Coerce
 
-newtype DPair f i = DPair (K Int i, f (Context f Node) i)
+newtype DPair f i = DPair (Node i, f (Context f Node) i)
 type EPair f = E (DPair f)
 
 -- | This function runs an attribute grammar on a dag. The result is
@@ -65,7 +67,7 @@ runAG :: forall f d u i . HTraversable f
     -> (u -> d)        -- ^ initialisation of inherited attributes
     -> Dag f i         -- ^ input dag
     -> u
-runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
+runAG res syn inh dinit (Dag root edges nodeCount) = uFin where
     uFin = runST runM
     dFin = dinit uFin
     runM :: forall s . ST s u
@@ -96,7 +98,7 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
              return u
           -- recurses through the tree structure
           runF :: d -> Context f Node :=> ST s u
-          runF d (Hole (K x)) = do
+          runF d (Hole (Node x)) = do
              -- we found a node: update the mapping for inherited
              -- attribute values
              old <- MVec.unsafeRead dmap x
@@ -110,8 +112,8 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
           iter :: EPair f -> ST s ()
           iter (E (DPair (n,t))) = do
             writeSTRef count 0  -- re-initialize counter
-            u <- run (fromJust $ dmapFin Vec.! unK n) t
-            MVec.unsafeWrite umap (unK n) u
+            u <- run (fromJust $ dmapFin Vec.! getNode n) t
+            MVec.unsafeWrite umap (getNode n) u
       -- first apply to the root
       u <- run dFin root
       -- then apply to the edges
@@ -128,7 +130,7 @@ runSynAG :: forall f u i . HTraversable f =>
        Syn' f u u  -- ^ semantic function of synthesised attributes
     -> Dag f i     -- ^ input dag
     -> u
-runSynAG syn Dag {edges,root,nodeCount} = runST runM where
+runSynAG syn (Dag root edges nodeCount) = runST runM where
     runM :: forall s . ST s u
     runM = mdo
       -- allocate mapping from nodes to synthesised attribute values
@@ -144,13 +146,13 @@ runSynAG syn Dag {edges,root,nodeCount} = runST runM where
              return u
           -- recurses through the tree structure
           runF :: forall j . Context f Node j -> ST s (K u j)
-          runF (Hole (K x)) = return . K $ umapFin Vec.! x
+          runF (Hole (Node x)) = return . K $ umapFin Vec.! x
           runF (Term t)     = K <$> run t
           -- This function is applied to each edge
           iter :: EPair f -> ST s ()
           iter (E (DPair (n,t))) = do
             u <- run  t
-            MVec.unsafeWrite umap (unK n) u
+            MVec.unsafeWrite umap (getNode n) u
       -- first apply to the root
       u <- run root
       -- then apply to the edges
@@ -164,7 +166,7 @@ runSynAG syn Dag {edges,root,nodeCount} = runST runM where
 -- a dag. The result is the (combined) synthesised attribute at the
 -- root of the dag and the rewritten dag.
 
-runRewrite :: forall f g d u i .(HTraversable f, HTraversable g)
+runRewrite :: forall f g d u i .(Typeable f, Typeable g, HTraversable f, HTraversable g)
     => (d -> d -> d)       -- ^ resolution function for inherited attributes
     -> Syn' f (u,d) u      -- ^ semantic function of synthesised attributes
     -> Inh' f (u,d) d      -- ^ semantic function of inherited attributes
@@ -172,7 +174,7 @@ runRewrite :: forall f g d u i .(HTraversable f, HTraversable g)
     -> (u -> d)            -- ^ initialisation of inherited attributes
     -> Dag f i             -- ^ input dag
     -> (u, Dag g i)
-runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
+runRewrite res syn inh rewr dinit (Dag root edges nodeCount) = result where
     result@(uFin,_) = runST runM
     dFin = dinit uFin
     runM :: forall s . ST s (u, Dag g i)
@@ -188,7 +190,7 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
       allEdges <- MVec.new nodeCount
       let -- This function is applied to each edge
           iter :: EPair f -> ST s ()
-          iter (E (DPair (K node,s))) = do
+          iter (E (DPair (Node node,s))) = do
              let d = fromJust $ dmapFin Vec.! node
              writeSTRef count 0
              K u :*: t <- run d s
@@ -218,12 +220,12 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
           runF d (Hole x) = do
              -- we found a node: update the mapping for inherited
              -- attribute values
-             old <- MVec.unsafeRead dmap $ unK x
+             old <- MVec.unsafeRead dmap $ getNode x
              let new = case old of
-                         Just o -> res o d
-                         _      -> d
-             MVec.unsafeWrite dmap (unK x) (Just new)
-             return $ K (umapFin Vec.! unK x) :*: Hole x
+                         Just o  -> res o d
+                         Nothing -> d
+             MVec.unsafeWrite dmap (getNode x) (Just new)
+             return $ K (umapFin Vec.! getNode x) :*: Hole x
       -- first apply to the root
       K u :*: interRoot <- run dFin root
       -- then apply to the edges
@@ -239,12 +241,12 @@ runRewrite res syn inh rewr dinit Dag {edges,root,nodeCount} = result where
 -- a dag. The result is the (combined) synthesised attribute at the
 -- root of the dag and the rewritten dag.
 
-runSynRewrite :: forall f g u i .(HTraversable f, HTraversable g) =>
+runSynRewrite :: forall f g u i .(Typeable f, Typeable g, HTraversable f, HTraversable g) =>
        Syn' f u u      -- ^ semantic function of synthesised attributes
     -> Rewrite f u g  -- ^ rewrite function (stateful tree homomorphism)
     -> Dag f i             -- ^ input dag
     -> (u, Dag g i)
-runSynRewrite syn rewr Dag {edges,root,nodeCount} = runST runM where
+runSynRewrite syn rewr (Dag root edges nodeCount) = runST runM where
     runM :: forall s . ST s (u, Dag g i)
     runM = mdo
       -- allocate mapping from nodes to synthesised attribute values
@@ -253,7 +255,7 @@ runSynRewrite syn rewr Dag {edges,root,nodeCount} = runST runM where
       allEdges <- MVec.new nodeCount
       let -- This function is applied to each edge
           iter :: EPair f -> ST s ()
-          iter (E (DPair (K node,s))) = do
+          iter (E (DPair (Node node,s))) = do
              K u :*: t <- run s
              MVec.unsafeWrite umap node u
              MVec.unsafeWrite allEdges node (E t)
@@ -270,7 +272,7 @@ runSynRewrite syn rewr Dag {edges,root,nodeCount} = runST runM where
           -- recurses through the tree structure
           runF :: NatM (ST s) (Context f Node) (K u :*: Context g Node)
           runF (Term t) = run t
-          runF (Hole x) = return $ K (umapFin Vec.! unK x) :*: Hole x
+          runF (Hole x) = return $ K (umapFin Vec.! getNode x) :*: Hole x
       -- first apply to the root
       K u :*: interRoot <- run root
       -- then apply to the edges
@@ -283,9 +285,9 @@ runSynRewrite syn rewr Dag {edges,root,nodeCount} = runST runM where
 -- | This function relabels the nodes of the given dag. Parts that are
 -- unreachable from the root are discarded. Instead of a 'DMap',
 -- edges are represented by a 'Vector'.
-relabelNodes :: forall f i . HTraversable f
+relabelNodes :: forall f i . (Typeable f, HTraversable f, Typeable i)
              => Context f Node i
-             -> Vector (E (Cxt Hole f (K Int)))
+             -> Vector (E (Cxt Hole f Node))
              -> Int
              -> Dag f i
 relabelNodes root edges nodeCount = runST run where
@@ -301,28 +303,28 @@ relabelNodes root edges nodeCount = runST run where
           -- graph. This function is applied to all nodes reachable
           -- from the given node as well.
           build :: forall j . Node j -> ST s (Node j)
-          build node = do
+          build node@(Node nodeVal) = do
             -- check whether we have already constructed a new node
             -- for the given node
-             mnewNode <- MVec.unsafeRead newNodes $ unK node
+             mnewNode <- MVec.unsafeRead newNodes nodeVal
              case mnewNode of
-               Just newNode -> return $ K newNode
+               Just newNode -> return $ Node newNode
                Nothing ->
-                   case edges Vec.! unK node of
-                     (E (Hole  (K n))) -> do
+                   case edges Vec.! getNode node of
+                     (E (Hole (Node n))) -> do
                        -- We found an edge that just maps to another
                        -- node. We shortcut this edge.
-                       newNode <- build $ K n
-                       MVec.unsafeWrite newNodes (unK node) (Just $ unK newNode)
+                       newNode <- build $ Node n
+                       MVec.unsafeWrite newNodes nodeVal (Just $ getNode newNode)
                        return newNode
                      E (Term f) -> do
                         -- Create a new node and call build recursively
                        newNode <- readSTRef curNode
                        writeSTRef curNode $! (newNode+1)
-                       MVec.unsafeWrite newNodes (unK node) (Just newNode)
+                       MVec.unsafeWrite newNodes nodeVal (Just newNode)
                        f' <- hmapM (hmapM build) f
-                       modifySTRef newEdges (M.insert (K newNode) f')
-                       return $ K newNode
+                       modifySTRef newEdges (M.insert (unsafeCoerce $ (Node newNode :: Node ())) f')
+                       return $ Node newNode
           -- This function is only used for the root. If the root is
           -- only a node, we lookup the mapping for that
           -- node. In any case we apply build to all nodes.
@@ -337,4 +339,4 @@ relabelNodes root edges nodeCount = runST run where
       -- collect the final edges mapping and node count
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef curNode
-      return Dag {edges = edges', root = root', nodeCount = nodeCount'}
+      return $ Dag root' edges' nodeCount'

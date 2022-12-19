@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 
 module Test.Multi.Dag where
 
@@ -21,6 +22,7 @@ import Data.Comp.Multi.Dag.Internal
 import qualified Data.Dependent.Map as M
 import qualified Data.Dependent.Sum as S
 import Control.Monad
+import Data.Typeable
 import Unsafe.Coerce
 
 tests =
@@ -33,82 +35,85 @@ tests =
     ]
 
 
-intTrees :: [E (Term IntTreeF)]
-intTrees = [E it1,E it2,E it3,E it4] where
-    it1 = iNode (iNode x (iLeaf 10)) x
-        where x = iNode y y
+intTrees :: [T (Term IntTreeF)]
+intTrees = [T it1,T it2,T it3,T it4] where
+    it1 = iTreeNode (iTreeNode x (iLeaf 10)) x
+        where x = iTreeNode y y
               y = iLeaf 20
-    it2 = iNode x (iNode (iLeaf 5) x)
-        where x = iNode (iNode (iLeaf 24) (iLeaf 3)) (iLeaf 4)
+    it2 = iTreeNode x (iTreeNode (iLeaf 5) x)
+        where x = iTreeNode (iTreeNode (iLeaf 24) (iLeaf 3)) (iLeaf 4)
     it3 = iLeaf 5
-    it4 = iNode x x
+    it4 = iTreeNode x x
         where x = iLeaf 0
 
-instance Show (E (Term IntTreeF)) where show (E x) = show x
+instance Show (T (Term IntTreeF)) where show (T x) = show x
 
-case_reifyUnravel = testAllEq' intTrees E (E . unravel)
+case_reifyUnravel = testAllEq' intTrees T (T . unravel)
 
 
-intGraphs :: [E (Dag IntTreeF)]
-intGraphs = [E it1,E it2,E it3,E it4] where
-    it1 = Dag { root = Node (iNode (Hole 0) (iLeaf 10)) (Hole 0)
-              , edges = M.fromList
-                        [K 0 S.:=> Node (Hole 1) (Hole 1),
-                         K 1 S.:=> Leaf 20]
-              , nodeCount = 2}
-    it2 = Dag { root = Node (Hole 0) (iNode (iLeaf 5) (Hole 0))
-              , edges = M.fromList [K 0 S.:=> Node (iNode (iLeaf 24) (iLeaf 3)) (iLeaf 4)]
-              , nodeCount = 1}
-    it3 = Dag { root = Leaf 5, edges = M.empty, nodeCount = 0 }
-    it4 = Dag { root = Node (Hole 0) (Hole 0)
-              , edges = M.singleton 0 (Leaf 0)
-              , nodeCount = 1}
+intGraphs :: [T (Dag IntTreeF)]
+intGraphs = [T it1,T it2,T it3,T it4] where
+    it1 :: Dag IntTreeF (((Int, Int), Int), (Int, Int))
+    it1 = Dag (TreeNode (iTreeNode (Hole 0) (iLeaf 10)) (Hole 0))
+              (M.fromList
+                        [Node 0 S.:=> TreeNode (Hole 1) (Hole 1),
+                         Node 1 S.:=> Leaf 20])
+              2
+    it2 :: Dag IntTreeF (((Int, Int), Int), (Int, ((Int, Int), Int)))
+    it2 = Dag (TreeNode (Hole 0) (iTreeNode (iLeaf 5) (Hole 0)))
+              (M.fromList [Node 0 S.:=> TreeNode (iTreeNode (iLeaf 24) (iLeaf 3)) (iLeaf 4)])
+              1
+    it3 = Dag (Leaf 5) M.empty 0
+    it4 :: Dag IntTreeF (Int, Int)
+    it4 = Dag (TreeNode (Hole 0) (Hole 0))
+              (M.singleton 0 (Leaf 0))
+              1
 
-data DagPair f = forall i . DagPair {getDagPar :: (Term f i, Dag f i)}
+data DagPair f where DagPair  :: Typeable i => (Term f i, Dag f i) -> DagPair f
 
 isoNotStrong :: [DagPair IntTreeF]
 isoNotStrong = [DagPair (it1,ig1),DagPair (it2,ig2)] where
-    it1 = iNode z x
-        where x = iNode y y
+    it1 = iTreeNode z x
+        where x = iTreeNode y y
               y = iLeaf 20
-              z = iNode x (iLeaf 10)
-    ig1 = Dag { root = Node (Hole 2) (Hole 0)
-              , edges = M.fromList
-                        [K 0 S.:=> Node (Hole 1) (Hole 1),
-                         K 1 S.:=> Leaf 20,
-                         K 2 S.:=> Node (Hole 0) (iLeaf 10)]
-              , nodeCount = 3}
-    it2 = iNode x z
-        where x = iNode (iNode (iLeaf 24) (iLeaf 3)) (iLeaf 4)
-              z = iNode (iLeaf 5) x
-    ig2 = Dag { root = Node (Hole 0) (Hole 1)
-              , edges = M.fromList
-                        [ K 0 S.:=> Node (iNode (iLeaf 24) (iLeaf 3)) (iLeaf 4)
-                        , K 1 S.:=> Node (iLeaf 5) (Hole 0)]
-              , nodeCount = 2}
+              z = iTreeNode x (iLeaf 10)
+    ig1 = Dag (TreeNode (Hole 2) (Hole 0))
+              (M.fromList
+                        [Node 0 S.:=> TreeNode (Hole 1) (Hole 1),
+                         Node 1 S.:=> Leaf 20,
+                         Node 2 S.:=> TreeNode (Hole 0) (iLeaf 10)])
+              3
+    it2 = iTreeNode x z
+        where x = iTreeNode (iTreeNode (iLeaf 24) (iLeaf 3)) (iLeaf 4)
+              z = iTreeNode (iLeaf 5) x
+    ig2 = Dag (TreeNode (Hole 0) (Hole 1))
+              (M.fromList
+                        [ Node 0 S.:=> TreeNode (iTreeNode (iLeaf 24) (iLeaf 3)) (iLeaf 4)
+                        , Node 1 S.:=> TreeNode (iLeaf 5) (Hole 0)])
+              2
 
 bisimNotIso :: [DagPair IntTreeF]
 bisimNotIso = [DagPair (it1,ig1),DagPair (it2,ig2)] where
-    it1 = iNode z x
-        where x = iNode y y
+    it1 = iTreeNode z x
+        where x = iTreeNode y y
               y = iLeaf 20
-              z = iNode x (iLeaf 10)
-    ig1 = Dag { root = Node (iNode (Hole 0) (iLeaf 10)) (Hole 0)
-              , edges = M.fromList
-                        [K 0 S.:=> Node (iLeaf 20) (iLeaf 20)]
-              , nodeCount = 1}
+              z = iTreeNode x (iLeaf 10)
+    ig1 = Dag (TreeNode (iTreeNode (Hole 0) (iLeaf 10)) (Hole 0))
+              (M.fromList
+                        [Node 0 S.:=> TreeNode (iLeaf 20) (iLeaf 20)])
+              1
 
-    it2 = iNode x z
-        where x = iNode (iNode y y) (iLeaf 4)
+    it2 = iTreeNode x z
+        where x = iTreeNode (iTreeNode y y) (iLeaf 4)
               y = iLeaf 3
-              z = iNode (iLeaf 5) x
-    ig2 = Dag { root = Node (Hole 0) (iNode (iLeaf 5) (Hole 0))
-              , edges = M.fromList [K 0 S.:=> Node (iNode (iLeaf 3) (iLeaf 3)) (iLeaf 4)]
-              , nodeCount = 1}
+              z = iTreeNode (iLeaf 5) x
+    ig2 = Dag (TreeNode (Hole 0) (iTreeNode (iLeaf 5) (Hole 0)))
+              (M.fromList [Node 0 S.:=> TreeNode (iTreeNode (iLeaf 3) (iLeaf 3)) (iLeaf 4)])
+              1
 
 
 case_reifyStrongIso = zipWithM_ run intTrees intGraphs
-    where run (E t) (E g) = do d <- reifyDag t
+    where run (T t) (T g) = do d <- reifyDag t
                                assertBool ("strongIso\n" ++ show d ++ "\n\n" ++ show (g :: Dag IntTreeF _)) (strongIso d $ unsafeCoerce g)
 
 case_reifyIso = mapM_ run isoNotStrong

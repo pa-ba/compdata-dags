@@ -88,7 +88,7 @@ instance (HFgeq f, GEq a) => GEq (f a) where
     x `geq` y = x `hfgeq` y
 
 instance Show (Node a) where
-    show (K i) = show i
+    show = show . getNode
 
 instance (ShowHF f, HFunctor f) => Show (Dag f i)
   where
@@ -102,7 +102,7 @@ instance (ShowHF f, HFunctor f) => Show (Dag f i)
 
 
 -- | Turn a term into a graph without sharing.
-termTree :: HFunctor f => Term f :-> Dag f
+termTree :: (Typeable f, HFunctor f, Typeable i) => Term f i -> Dag f i
 termTree (Term t) = Dag (hfmap toCxt t) M.empty 0
 
 -- | This exception indicates that a 'Term' could not be reified to a
@@ -114,7 +114,7 @@ instance Exception CyclicException
 
 newtype SName f i = SName {getSName :: StableName (f (Term f) i)}
 instance Hashable (SName f i) where
-    hashWithSalt i = hashWithSalt 239 . hashWithSalt i . getSName
+    hashWithSalt s = hashWithSalt 239 . hashWithSalt s . getSName
 instance Hashable (Some (SName f)) where
     hashWithSalt i (Some x) = hashWithSalt 789 $ hashWithSalt i x
 instance GEq (SName f) where
@@ -126,7 +126,7 @@ newtype TermPair f i = TermPair {getTermPair :: (Bool, f (SName f) i)}
 -- structure of the term is cyclic an exception of type
 -- 'CyclicException' is thrown.
 --reifyDag :: HTraversable f => NatM IO (Term f) (Dag f)
-reifyDag :: forall f. (GEq (f (Term f)), HTraversable f) => forall i . Term f i -> IO (Dag f i)
+reifyDag :: forall f i . (GEq (f (Term f)), HTraversable f, Typeable f, Typeable i) => Term f i -> IO (Dag f i)
 reifyDag m = do
   tabRef <- newIORef DH.empty
   let findNodes :: forall j. Term f j -> IO (SName f j)
@@ -149,7 +149,7 @@ reifyDag m = do
   counterRef :: IORef Int <- newIORef 0
   edgesRef <- newIORef M.empty
   nodesRef <- newIORef DH.empty
-  let run :: forall j. StableName (f (Term f) j) -> IO (Cxt Hole f (K Int) j)
+  let run :: forall j. StableName (f (Term f) j) -> IO (Cxt Hole f Node j)
       run st = do
         let stKey = SName st
         let TermPair (single,f) = tab DH.! stKey
@@ -161,10 +161,11 @@ reifyDag m = do
             Nothing -> do
               n <- readIORef counterRef
               writeIORef counterRef $! (n+1)
-              writeIORef nodesRef (DH.insert stKey (K n) nodes)
+              let node = unsafeCoerce (Node n :: Node ()) :: Node j
+              writeIORef nodesRef (DH.insert stKey node nodes)
               f' <- hmapM (run . getSName) f
-              modifyIORef edgesRef (M.insert (K n) f')
-              return (Hole $ K n)
+              modifyIORef edgesRef (M.insert node f')
+              return (Hole node)
   Term root <- run (getSName st)
   edges <- readIORef edgesRef
   count <- readIORef counterRef
@@ -174,8 +175,8 @@ reifyDag m = do
 -- | This function unravels a given graph to the term it
 -- represents.
 
-unravel :: forall f. HFunctor f => Dag f :-> Term f
-unravel Dag {edges, root} = Term $ hfmap build root
+unravel :: forall f i . (Typeable i, HFunctor f) => Dag f i -> Term f i
+unravel (Dag root edges _) = Term $ hfmap build root
     where build :: forall i . Context f Node i -> Term f i
           build (Term t) = Term $ hfmap build t
           build (Hole n) = Term . hfmap build $ edges M.! n
@@ -190,7 +191,7 @@ unravel Dag {edges, root} = Term $ hfmap build root
 -- That is, two dags are bisimilar iff they have the same unravelling.
 
 bisim :: forall f i . (EqHF f, HFunctor f, HFoldable f)  => Dag f i -> Dag f i -> Bool
-bisim Dag {root=r1,edges=e1}  Dag {root=r2,edges=e2} = runF r1 r2
+bisim (Dag r1 e1 _)  (Dag r2 e2 _) = runF r1 r2
     where run :: forall j k . (Context f Node j, Context f Node k) -> Bool
           run (t1, t2) = runF (step e1 t1) (step e2 t2)
           step :: forall j . Edges f -> Context f Node j -> f (Context f Node) j
@@ -204,18 +205,18 @@ bisim Dag {root=r1,edges=e1}  Dag {root=r2,edges=e2} = runF r1 r2
 
 -- | Checks whether the two given DAGs are isomorphic.
 
-iso :: (HTraversable f, HFoldable f, EqHF f) => forall i . Dag f i -> Dag f i -> Bool
-iso g1 g2 = checkIso (fmap (fmap (fmap $ \(E (K x), E ( K y)) -> (K x, K y))) . heqMod) (flatten g1) (flatten g2)
+iso :: (HTraversable f, HFoldable f, EqHF f, Typeable i) => Dag f i -> Dag f i -> Bool
+iso g1 g2 = checkIso (fmap (fmap (fmap $ \(E (Node x), E (Node y)) -> (Node x, Node y))) . heqMod) (flatten g1) (flatten g2)
 
 
 -- | Checks whether the two given DAGs are strongly isomorphic, i.e.
 --   their internal representation is the same modulo renaming of
 --   nodes.
 
-strongIso :: (HFunctor f, HFoldable f, EqHF f) => forall i . Dag f i -> Dag f i -> Bool
-strongIso Dag {root=r1,edges=e1,nodeCount=nx1}
-          Dag {root=r2,edges=e2,nodeCount=nx2}
-              = checkIso (fmap (fmap (fmap $ \(E (K x), E (K y)) -> (K x, K y))) . checkEq) (r1,e1,nx1) (r2,e2,nx2)
+strongIso :: (HFunctor f, HFoldable f, EqHF f, Typeable i) => Dag f i -> Dag f i -> Bool
+strongIso (Dag r1 e1 nx1)
+          (Dag r2 e2 nx2)
+              = checkIso (fmap (fmap (fmap $ \(E (Node x), E (Node y)) -> (Node x, Node y))) . checkEq) (r1,e1,nx1) (r2,e2,nx2)
     where checkEq t1 t2 = heqMod (Term t1) (Term t2)
 
 
@@ -223,8 +224,8 @@ strongIso Dag {root=r1,edges=e1,nodeCount=nx1}
 -- | This function flattens the internal representation of a DAG. That
 -- is, it turns the nested representation of edges into single layers.
 
-flatten :: forall f i . HTraversable f => Dag f i -> (f Node i, M.DMap Node (f Node), Int)
-flatten Dag {root,edges,nodeCount} = runST run where
+flatten :: forall f i . (HTraversable f, Typeable i) => Dag f i -> (f Node i, M.DMap Node (f Node), Int)
+flatten (Dag root edges nodeCount) = runST run where
     run :: forall s . ST s (f Node i, M.DMap Node (f Node), Int)
     run = do
       count <- newSTRef 0
@@ -232,24 +233,25 @@ flatten Dag {root,edges,nodeCount} = runST run where
       MVec.set nMap Nothing
       newEdges <- newSTRef M.empty
       let build :: forall j . Context f Node j -> ST s (Node j)
-          build (Hole n) = mkNode (unK n)
+          build (Hole (Node n)) = mkNode n
           build (Term t) = do
             n' <- readSTRef count
             writeSTRef count $! (n'+1)
             t' <- hmapM build t
-            modifySTRef newEdges (M.insert (K n') t')
-            return $ K n'
-          mkNode :: forall j . Int -> ST s (Node j)
+            let node = unsafeCoerce (Node n' :: Node ()) :: Node j
+            modifySTRef newEdges (M.insert node t')
+            return node
+          mkNode :: forall j . Typeable j => Int -> ST s (Node j)
           mkNode n = do
             mn' <- MVec.unsafeRead nMap n
             case mn' of
-              Just (K n') -> return $ K n'
+              Just (Node n') -> return $ Node n'
               Nothing -> do n' <- readSTRef count
                             writeSTRef count $! (n'+1)
-                            MVec.unsafeWrite nMap n (Just $ K n')
-                            return $ K n'
-          buildF (n S.:=> t) = do
-            n' <- mkNode $ unK n
+                            MVec.unsafeWrite nMap n (Just $ Node n')
+                            return $ Node n'
+          buildF (Node n S.:=> t) = do
+            n' <- mkNode n
             t' <- hmapM build t
             modifySTRef newEdges (M.insert n' t')
       root' <- hmapM build root
@@ -284,18 +286,18 @@ checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
                           Nothing -> return False
                           Just l -> liftM and $ mapM checkN l
          checkN (n1,n2) = do
-           nm' <- MVec.unsafeRead nMap (unK n1)
+           nm' <- MVec.unsafeRead nMap (getNode n1)
            case nm' of
              Just n' -> return (n2 == n')
-             _ -> do
-               b <- MVec.unsafeRead nSet (unK n2)
+             Nothing -> do
+               b <- MVec.unsafeRead nSet (getNode n2)
                if b
                -- n2 is already mapped to by another node
                then return False
                -- n2 is not mapped to
                else do
                  -- create mapping from n1 to n2
-                 MVec.unsafeWrite nMap (unK n1) (Just n2)
-                 MVec.unsafeWrite nSet (unK n2) True
+                 MVec.unsafeWrite nMap (getNode n1) (Just n2)
+                 MVec.unsafeWrite nSet (getNode n2) True
                  checkT (e1 M.! n1) (e2 M.! n2)
      checkT r1 r2
