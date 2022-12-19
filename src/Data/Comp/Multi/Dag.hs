@@ -35,6 +35,9 @@ module Data.Comp.Multi.Dag
     , bisim
     , iso
     , strongIso
+
+    , SName (..)
+    , TermPair (..)
     ) where
 
 import Control.Exception.Base
@@ -248,7 +251,7 @@ flatten (Dag root edges nodeCount) = runST run where
               Just (Node n') -> return $ Node n'
               Nothing -> do n' <- readSTRef count
                             writeSTRef count $! (n'+1)
-                            MVec.unsafeWrite nMap n (Just $ Node n')
+                            MVec.write nMap n (Just $ Node n')
                             return $ Node n'
           buildF (Node n S.:=> t) = do
             n' <- mkNode n
@@ -297,7 +300,7 @@ checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
                -- n2 is not mapped to
                else do
                  -- create mapping from n1 to n2
-                 MVec.unsafeWrite nMap (getNode n1) (Just n2)
-                 MVec.unsafeWrite nSet (getNode n2) True
+                 MVec.write nMap (getNode n1) (Just n2)
+                 MVec.write nSet (getNode n2) True
                  checkT (e1 M.! n1) (e2 M.! n2)
      checkT r1 r2
