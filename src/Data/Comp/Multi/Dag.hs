@@ -4,7 +4,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE GADTs                #-}
 {-# LANGUAGE KindSignatures       #-}
-{-# LANGUAGE NamedFieldPuns       #-}
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeApplications     #-}
@@ -36,6 +35,8 @@ module Data.Comp.Multi.Dag
     , iso
     , strongIso
 
+    , Node
+    , getNode
     , SName (..)
     , TermPair (..)
     ) where
