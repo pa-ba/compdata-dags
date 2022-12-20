@@ -39,8 +39,8 @@ getNode (Node i) = i
 
 instance Typeable t => Num (Node t) where
     fromInteger = Node . fromInteger
-    (+) = fmap fmap fmap Node . (. getNode) $ (. getNode) . (+)
-    (*) = fmap fmap fmap Node . (. getNode) $ (. getNode) . (*)
+    (+) = fmap fmap fmap Node $ (. getNode) . (+) . getNode
+    (*) = fmap fmap fmap Node $ (. getNode) . (*) . getNode
     abs = Node . abs . getNode
     signum = Node . signum . getNode
     negate = Node . negate . getNode
@@ -100,3 +100,22 @@ edges (Dag _ e _) = e
 
 nodeCount :: Dag f i -> Int
 nodeCount (Dag _ _ n) = n
+
+type Edges' f = M.DMap Node (f Node)
+
+-- | Dags without recursion.
+data Dag' f i where
+    Dag' :: (Typeable f, Typeable i) =>
+       f Node i                 -- ^ the entry point for the DAG
+        -> Edges' f             -- ^ the edges of the DAG
+        -> Int                  -- ^ the total number of nodes in the DAG
+        -> Dag' f i
+
+root' :: Dag' f i -> f Node i
+root' (Dag' c _ _) = c
+
+edges' :: Dag' f i -> Edges' f
+edges' (Dag' _ e _) = e
+
+nodeCount' :: Dag' f i -> Int
+nodeCount' (Dag' _ _ n) = n

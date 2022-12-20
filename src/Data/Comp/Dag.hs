@@ -21,8 +21,10 @@
 --------------------------------------------------------------------------------
 
 module Data.Comp.Dag
-    ( Dag
+    ( Dag (..)
+    , Dag' (..)
     , termTree
+    , termTree'
     , reifyDag
     , unravel
     , bisim
@@ -37,7 +39,7 @@ import Data.Comp.Equality
 import Data.Comp.Term
 import Data.Foldable (Foldable)
 import qualified Data.HashMap.Lazy as HashMap
-import Data.IntMap
+import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IORef
 import Data.Traversable (Traversable)
@@ -47,6 +49,7 @@ import System.Mem.StableName
 
 import Control.Monad.ST
 import Data.Comp.Show
+import Data.Comp.Mapping
 import Data.List
 import Data.STRef
 import qualified Data.Vector as Vec
@@ -63,10 +66,37 @@ instance (ShowF f, Functor f) => Show (Dag f)
         showLst ss = "[" ++ intercalate "," ss ++ "]"
 
 
+instance (ShowF f, Functor f) => Show (Dag' f)
+  where
+    show (Dag' r es _) = unwords
+        [ "mkDag'"
+        , show $ simpCxt r
+        , showLst ["(" ++ show n ++ "," ++ show (simpCxt f) ++ ")" | (n,f) <- IntMap.toList es ]
+        ]
+      where
+        showLst ss = "[" ++ intercalate "," ss ++ "]"
+
 
 -- | Turn a term into a graph without sharing.
 termTree :: Functor f => Term f -> Dag f
 termTree (Term t) = Dag (fmap toCxt t) IntMap.empty 0
+
+-- | Turn a term into a graph without sharing.
+termTree' :: forall f . (Traversable f, Functor f) => Term f -> Dag' f
+termTree' (Term t) = Dag' r e n where
+    s = number t
+    r = fmap (\(Numbered j _) -> j) s
+    m = 1+foldl' max 0 r
+    (n, e) = execState (mapM_ run s) (m, IntMap.empty)
+    run :: Numbered (Term f) -> State (Int, Edges' f) ()
+    run (Numbered i (Term !t)) = do
+        (n, e) <- get
+        let t' = (\(Numbered j _) -> n+j) <$> number t
+        let t'' = (\(Numbered j x) -> Numbered (n+j) x) <$> number t
+        let e' = IntMap.insert i t' e
+        let m = foldl' max 0 . fmap (\(Numbered j _) -> j+1) $ number t
+        put (n+m, e')
+        mapM_ run t''
 
 -- | This exception indicates that a 'Term' could not be reified to a
 -- 'Dag' (using 'reifyDag') due to its cyclic sharing structure.

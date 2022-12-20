@@ -27,8 +27,10 @@
 
 module Data.Comp.Multi.Dag
     ( Dag (..)
+    , Dag' (..)
     , HFgeq (..)
     , termTree
+    , termTree'
     , reifyDag
     , unravel
     , bisim
@@ -37,6 +39,12 @@ module Data.Comp.Multi.Dag
 
     , Node (..)
     , getNode
+    , root
+    , edges
+    , nodeCount
+    , root'
+    , edges'
+    , nodeCount'
     , SName (..)
     , TermPair (..)
     ) where
@@ -57,6 +65,7 @@ import System.Mem.StableName
 import Control.Monad.ST
 import Data.Comp.Multi.Ops
 import Data.Comp.Multi.Show
+import Data.Comp.Multi.Mapping
 import Data.List
 import Data.STRef
 import Data.Some
@@ -104,10 +113,39 @@ instance (ShowHF f, HFunctor f) => Show (Dag f i)
       where
         showLst ss = "[" ++ intercalate "," ss ++ "]"
 
+instance (ShowHF f, HFunctor f) => Show (Dag' f i)
+  where
+    show (Dag' r es _) = unwords
+        [ "mkDag'"
+        , show  (simpCxt r)
+        , showLst ["(" ++ show n ++ "," ++ show (simpCxt f) ++ ")" | (n S.:=>f) <- M.toList es ]
+        ]
+      where
+        showLst ss = "[" ++ intercalate "," ss ++ "]"
 
 -- | Turn a term into a graph without sharing.
 termTree :: (Typeable f, HFunctor f, Typeable i) => Term f i -> Dag f i
 termTree (Term t) = Dag (hfmap toCxt t) M.empty 0
+
+
+-- | Turn a term into a graph without sharing.
+termTree' :: forall f i . (HTraversable f, HFunctor f, Typeable i, Typeable f) => Term f i -> Dag' f i
+termTree' (Term t) = Dag' r e n where
+    s = number t
+    r = hfmap (\(Numbered j _) -> unsafeCoerce (Node j :: Node ())) s
+    m = 1+hfoldl ((. getNode) . max) 0 r
+    (n, e) = execState (hmapM run s) (m, M.empty)
+    run :: forall j . Numbered (Term f) j -> State (Int, Edges' f) (K () j)
+    run (Numbered i (Term !t)) = do
+        (n, e) <- get
+        let t' = hfmap (\(Numbered j _) -> unsafeCoerce (Node $ n+j :: Node ())) $ number t
+        let t'' = hfmap (\(Numbered j x) -> Numbered (n+j) x) $ number t
+        let e' = M.insert (unsafeCoerce (Node i :: Node ())) t' e
+        let (K m) = hfoldl (fmap fmap fmap (K . unK) max . (K . unK)) 0 . hfmap (\(Numbered j _) -> K $ j+1) $ number t
+        put (n+m, e')
+        hmapM run t''
+        return $ K ()
+
 
 -- | This exception indicates that a 'Term' could not be reified to a
 -- 'Dag' (using 'reifyDag') due to its cyclic sharing structure.
@@ -122,7 +160,7 @@ instance Hashable (SName f i) where
 instance Hashable (Some (SName f)) where
     hashWithSalt i (Some x) = hashWithSalt 789 $ hashWithSalt i x
 instance GEq (SName f) where
-    a `geq` b = if getSName a == (unsafeCoerce $ getSName b) then Just $ unsafeCoerce Refl else Nothing
+    a `geq` b = if getSName a == unsafeCoerce (getSName b) then Just $ unsafeCoerce Refl else Nothing
 newtype TermPair f i = TermPair {getTermPair :: (Bool, f (SName f) i)}
 
 -- | This function takes a term, and returns a 'Dag' with the implicit
