@@ -26,7 +26,7 @@
 --------------------------------------------------------------------------------
 
 module Data.Comp.Multi.Dag
-    ( Dag
+    ( Dag (..)
     , HFgeq (..)
     , termTree
     , reifyDag
