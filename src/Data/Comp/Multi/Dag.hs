@@ -9,6 +9,7 @@
 {-# LANGUAGE TypeApplications     #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 
 --------------------------------------------------------------------------------
@@ -40,12 +41,6 @@ module Data.Comp.Multi.Dag
 
     , Node (..)
     , getNode
-    , root
-    , edges
-    , nodeCount
-    , root'
-    , edges'
-    , nodeCount'
     , SName (..)
     , TermPair (..)
     ) where
@@ -106,7 +101,7 @@ instance Show (Node a) where
 
 instance (ShowHF f, HFunctor f) => Show (Dag f i)
   where
-    show (Dag r es _) = unwords
+    show Dag {root=r, edges=es} = unwords
         [ "mkDag"
         , show  (Term r)
         , showLst ["(" ++ show n ++ "," ++ show (Term f) ++ ")" | (n S.:=>f) <- M.toList es ]
@@ -116,7 +111,7 @@ instance (ShowHF f, HFunctor f) => Show (Dag f i)
 
 instance (ShowHF f, HFunctor f) => Show (Dag' f i)
   where
-    show (Dag' r es _) = unwords
+    show Dag' {root'=r, edges'=es} = unwords
         [ "mkDag'"
         , show  (simpCxt r)
         , showLst ["(" ++ show n ++ "," ++ show (simpCxt f) ++ ")" | (n S.:=>f) <- M.toList es ]
@@ -149,7 +144,11 @@ termTree' (Term t) = Dag' r e n where
 
 -- | Convert a Dag' to a Dag.
 simpDag :: HFunctor f => Dag' f :-> Dag f
-simpDag (Dag' r e n) = Dag (hfmap Hole r) (M.fromList $ (\(a S.:=> b) -> a S.:=> hfmap Hole b) <$> M.toList e) n
+simpDag Dag' {root', edges', nodeCount'} = Dag {
+                                                 root = hfmap Hole root'
+                                               , edges = M.fromList $ (\(a S.:=> b) -> a S.:=> hfmap Hole b) <$> M.toList edges'
+                                               , nodeCount = nodeCount'
+                                               }
 
 -- | This exception indicates that a 'Term' could not be reified to a
 -- 'Dag' (using 'reifyDag') due to its cyclic sharing structure.
@@ -222,7 +221,7 @@ reifyDag m = do
 -- represents.
 
 unravel :: forall f i . (Typeable i, HFunctor f) => Dag f i -> Term f i
-unravel (Dag root edges _) = Term $ hfmap build root
+unravel Dag {root, edges} = Term $ hfmap build root
     where build :: forall i . Context f Node i -> Term f i
           build (Term t) = Term $ hfmap build t
           build (Hole n) = Term . hfmap build $ edges M.! n
@@ -237,7 +236,7 @@ unravel (Dag root edges _) = Term $ hfmap build root
 -- That is, two dags are bisimilar iff they have the same unravelling.
 
 bisim :: forall f i . (EqHF f, HFunctor f, HFoldable f)  => Dag f i -> Dag f i -> Bool
-bisim (Dag r1 e1 _)  (Dag r2 e2 _) = runF r1 r2
+bisim Dag {root=r1, edges=e1}  Dag {root=r2, edges=e2} = runF r1 r2
     where run :: forall j k . (Context f Node j, Context f Node k) -> Bool
           run (t1, t2) = runF (step e1 t1) (step e2 t2)
           step :: forall j . Edges f -> Context f Node j -> f (Context f Node) j
@@ -260,8 +259,8 @@ iso g1 g2 = checkIso (fmap (fmap (fmap $ \(E (Node x), E (Node y)) -> (Node x, N
 --   nodes.
 
 strongIso :: (HFunctor f, HFoldable f, EqHF f, Typeable i) => Dag f i -> Dag f i -> Bool
-strongIso (Dag r1 e1 nx1)
-          (Dag r2 e2 nx2)
+strongIso Dag {root=r1, edges=e1, nodeCount=nx1}
+          Dag {root=r2, edges=e2, nodeCount=nx2}
               = checkIso (fmap (fmap (fmap $ \(E (Node x), E (Node y)) -> (Node x, Node y))) . checkEq) (r1,e1,nx1) (r2,e2,nx2)
     where checkEq t1 t2 = heqMod (Term t1) (Term t2)
 
@@ -271,7 +270,7 @@ strongIso (Dag r1 e1 nx1)
 -- is, it turns the nested representation of edges into single layers.
 
 flatten :: forall f i . (HTraversable f, Typeable i) => Dag f i -> (f Node i, M.DMap Node (f Node), Int)
-flatten (Dag root edges nodeCount) = runST run where
+flatten Dag {root, edges, nodeCount} = runST run where
     run :: forall s . ST s (f Node i, M.DMap Node (f Node), Int)
     run = do
       count <- newSTRef 0

@@ -87,35 +87,19 @@ type Edges f = M.DMap Node (f (Context f Node))
 
 data Dag f i where
     Dag :: (Typeable f, Typeable i) =>
-       f (Context f Node) i     -- ^ the entry point for the DAG
-        -> Edges f              -- ^ the edges of the DAG
-        -> Int                  -- ^ the total number of nodes in the DAG
-        -> Dag f i
-
-root :: Dag f i -> f (Context f Node) i
-root (Dag c _ _) = c
-
-edges :: Dag f i -> Edges f
-edges (Dag _ e _) = e
-
-nodeCount :: Dag f i -> Int
-nodeCount (Dag _ _ n) = n
+      {
+        root      :: f (Context f Node) i     -- ^ the entry point for the DAG
+      , edges     :: Edges f                  -- ^ the edges of the DAG
+      , nodeCount :: Int                      -- ^ the total number of nodes in the DAG
+      } -> Dag f i
 
 type Edges' f = M.DMap Node (f Node)
 
 -- | Dags without recursion.
 data Dag' f i where
     Dag' :: (Typeable f, Typeable i) =>
-       f Node i                 -- ^ the entry point for the DAG
-        -> Edges' f             -- ^ the edges of the DAG
-        -> Int                  -- ^ the total number of nodes in the DAG
-        -> Dag' f i
-
-root' :: Dag' f i -> f Node i
-root' (Dag' c _ _) = c
-
-edges' :: Dag' f i -> Edges' f
-edges' (Dag' _ e _) = e
-
-nodeCount' :: Dag' f i -> Int
-nodeCount' (Dag' _ _ n) = n
+      {
+        root' :: f Node i              -- ^ the entry point for the DAG
+      , edges' ::  Edges' f             -- ^ the edges of the DAG
+      , nodeCount' :: Int               -- ^ the total number of nodes in the DAG
+      } -> Dag' f i
