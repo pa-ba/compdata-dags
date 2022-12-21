@@ -25,6 +25,7 @@ module Data.Comp.Dag
     , Dag' (..)
     , termTree
     , termTree'
+    , simpDag
     , reifyDag
     , unravel
     , bisim
@@ -97,6 +98,10 @@ termTree' (Term t) = Dag' r e n where
         let m = foldl' max 0 . fmap (\(Numbered j _) -> j+1) $ number t
         put (n+m, e')
         mapM_ run t''
+
+-- | Convert a Dag' to a Dag.
+simpDag :: Functor f => Dag' f -> Dag f
+simpDag (Dag' r e n) = Dag (fmap Hole r) (fmap Hole <$> e) n
 
 -- | This exception indicates that a 'Term' could not be reified to a
 -- 'Dag' (using 'reifyDag') due to its cyclic sharing structure.

@@ -31,6 +31,7 @@ module Data.Comp.Multi.Dag
     , HFgeq (..)
     , termTree
     , termTree'
+    , simpDag
     , reifyDag
     , unravel
     , bisim
@@ -146,6 +147,9 @@ termTree' (Term t) = Dag' r e n where
         hmapM run t''
         return $ K ()
 
+-- | Convert a Dag' to a Dag.
+simpDag :: HFunctor f => Dag' f :-> Dag f
+simpDag (Dag' r e n) = Dag (hfmap Hole r) (M.fromList $ (\(a S.:=> b) -> a S.:=> hfmap Hole b) <$> M.toList e) n
 
 -- | This exception indicates that a 'Term' could not be reified to a
 -- 'Dag' (using 'reifyDag') due to its cyclic sharing structure.
