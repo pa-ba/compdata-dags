@@ -171,7 +171,7 @@ newtype TermPair f i = TermPair {getTermPair :: (Bool, f (SName f) i)}
 -- structure of the term is cyclic an exception of type
 -- 'CyclicException' is thrown.
 --reifyDag :: HTraversable f => NatM IO (Term f) (Dag f)
-reifyDag :: forall f i . (GEq (f (Term f)), HTraversable f, Typeable f, Typeable i) => Term f i -> IO (Dag f i)
+reifyDag :: forall f i . (HFgeq f, HTraversable f, Typeable f, Typeable i) => Term f i -> IO (Dag f i)
 reifyDag m = do
   tabRef <- newIORef DH.empty
   let findNodes :: forall j. Term f j -> IO (SName f j)
@@ -250,7 +250,7 @@ bisim Dag {root=r1, edges=e1}  Dag {root=r2, edges=e2} = runF r1 r2
 
 -- | Checks whether the two given DAGs are isomorphic.
 
-iso :: (HTraversable f, HFoldable f, EqHF f, Typeable i) => Dag f i -> Dag f i -> Bool
+iso :: (HTraversable f, HFoldable f, EqHF f, Typeable i, Typeable f) => Dag f i -> Dag f i -> Bool
 iso g1 g2 = checkIso (fmap (fmap (fmap $ \(E (Node x), E (Node y)) -> (Node x, Node y))) . heqMod) (flatten g1) (flatten g2)
 
 
@@ -269,7 +269,9 @@ strongIso Dag {root=r1, edges=e1, nodeCount=nx1}
 -- | This function flattens the internal representation of a DAG. That
 -- is, it turns the nested representation of edges into single layers.
 
-flatten :: forall f i . (HTraversable f, Typeable i) => Dag f i -> (f Node i, M.DMap Node (f Node), Int)
+flatten :: forall f i . (HTraversable f, Typeable i, Typeable f) => Dag f i -> (f Node i, M.DMap Node (f Node), Int)
+flatten d = let Dag' {root', edges', nodeCount'} = termTree' $ unravel d in (root', edges', nodeCount')
+{-
 flatten Dag {root, edges, nodeCount} = runST run where
     run :: forall s . ST s (f Node i, M.DMap Node (f Node), Int)
     run = do
@@ -304,6 +306,7 @@ flatten Dag {root, edges, nodeCount} = runST run where
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef count
       return (root', edges', nodeCount')
+-}
 
 
 
