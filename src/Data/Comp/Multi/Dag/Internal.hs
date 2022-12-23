@@ -95,7 +95,7 @@ data Dag f i where
 
 type Edges' f = M.DMap Node (f Node)
 
--- | Dags without recursion.
+-- | Flat dags.
 data Dag' f i where
     Dag' :: (Typeable f, Typeable i) =>
       {

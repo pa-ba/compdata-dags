@@ -37,6 +37,8 @@ data Dag f = Dag
 
 type Edges' f = IntMap (f Node)
 
+-- | Flat dags.
+
 data Dag' f = Dag'
     { root'      :: f Node             -- ^ the entry point for the DAG
     , edges'     :: Edges' f           -- ^ the edges of the DAG

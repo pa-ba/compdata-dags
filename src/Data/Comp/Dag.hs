@@ -82,7 +82,7 @@ instance (ShowF f, Functor f) => Show (Dag' f)
 termTree :: Functor f => Term f -> Dag f
 termTree (Term t) = Dag (fmap toCxt t) IntMap.empty 0
 
--- | Turn a term into a graph without sharing.
+-- | Turn a term into a flat graph without sharing.
 termTree' :: forall f . (Traversable f, Functor f) => Term f -> Dag' f
 termTree' (Term t) = Dag' r e n where
     s = number t

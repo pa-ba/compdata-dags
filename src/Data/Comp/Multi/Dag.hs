@@ -124,7 +124,7 @@ termTree :: (Typeable f, HFunctor f, Typeable i) => Term f i -> Dag f i
 termTree (Term t) = Dag (hfmap toCxt t) M.empty 0
 
 
--- | Turn a term into a graph without sharing.
+-- | Turn a term into a flat graph without sharing.
 termTree' :: forall f i . (HTraversable f, HFunctor f, Typeable i, Typeable f) => Term f i -> Dag' f i
 termTree' (Term t) = Dag' r e n where
     s = number t
