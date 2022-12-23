@@ -36,8 +36,9 @@ module Data.Comp.Multi.Dag
     , reifyDag
     , unravel
     , bisim
-    , iso
-    , strongIso
+    --, iso
+    --, strongIso
+    , flatten
 
     , Node (..)
     , getNode
@@ -250,6 +251,7 @@ bisim Dag {root=r1, edges=e1}  Dag {root=r2, edges=e2} = runF r1 r2
 
 -- | Checks whether the two given DAGs are isomorphic.
 
+{-
 iso :: (HTraversable f, HFoldable f, EqHF f, Typeable i, Typeable f) => Dag f i -> Dag f i -> Bool
 iso g1 g2 = checkIso (fmap (fmap (fmap $ \(E (Node x), E (Node y)) -> (Node x, Node y))) . heqMod) (flatten g1) (flatten g2)
 
@@ -263,15 +265,16 @@ strongIso Dag {root=r1, edges=e1, nodeCount=nx1}
           Dag {root=r2, edges=e2, nodeCount=nx2}
               = checkIso (fmap (fmap (fmap $ \(E (Node x), E (Node y)) -> (Node x, Node y))) . checkEq) (r1,e1,nx1) (r2,e2,nx2)
     where checkEq t1 t2 = heqMod (Term t1) (Term t2)
+-}
 
 
 
 -- | This function flattens the internal representation of a DAG. That
 -- is, it turns the nested representation of edges into single layers.
 
-flatten :: forall f i . (HTraversable f, Typeable i, Typeable f) => Dag f i -> (f Node i, M.DMap Node (f Node), Int)
+flatten :: forall f i . (HTraversable f, Typeable i, Typeable f) => Dag f i -> Dag' f i
 flatten Dag {root, edges, nodeCount} = runST run where
-    run :: forall s . ST s (f Node i, M.DMap Node (f Node), Int)
+    run :: forall s . ST s (Dag' f i)
     run = do
       count <- newSTRef 0
       nMap :: Vec.MVector s (Maybe (Node i)) <- MVec.new nodeCount
@@ -303,10 +306,11 @@ flatten Dag {root, edges, nodeCount} = runST run where
       fmap void $ mapM buildF $ M.toList edges
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef count
-      return (root', edges', nodeCount')
+      return Dag' {root', edges', nodeCount'}
 
 
 
+{-
 -- | Checks whether the two given dag representations are
 -- isomorphic. This function is polymorphic in the representation of
 -- the edges. The first argument is a function that checks whether two
@@ -346,3 +350,4 @@ checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
                  MVec.write nSet (getNode n2) True
                  checkT (e1 M.! n1) (e2 M.! n2)
      checkT r1 r2
+-}

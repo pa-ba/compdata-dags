@@ -28,6 +28,7 @@ module Data.Comp.Dag
     , simpDag
     , reifyDag
     , unravel
+    , flatten
     , bisim
     , iso
     , strongIso
@@ -189,7 +190,8 @@ bisim Dag {root=r1,edges=e1}  Dag {root=r2,edges=e2} = runF r1 r2
 -- | Checks whether the two given DAGs are isomorphic.
 
 iso :: (Traversable f, Foldable f, EqF f) => Dag f -> Dag f -> Bool
-iso g1 g2 = checkIso eqMod (flatten g1) (flatten g2)
+iso g1 g2 = checkIso eqMod (let Dag' {root', edges', nodeCount'} = flatten g1 in (root', edges', nodeCount'))
+                           (let Dag' {root', edges', nodeCount'} = flatten g2 in (root', edges', nodeCount'))
 
 
 -- | Checks whether the two given DAGs are strongly isomorphic, i.e.
@@ -207,9 +209,9 @@ strongIso Dag {root=r1,edges=e1,nodeCount=nx1}
 -- | This function flattens the internal representation of a DAG. That
 -- is, it turns the nested representation of edges into single layers.
 
-flatten :: forall f . Traversable f => Dag f -> (f Node, IntMap (f Node), Int)
+flatten :: forall f . Traversable f => Dag f -> Dag' f
 flatten Dag {root,edges,nodeCount} = runST run where
-    run :: forall s . ST s (f Node, IntMap (f Node), Int)
+    run :: forall s . ST s (Dag' f)
     run = do
       count <- newSTRef 0
       nMap :: Vec.MVector s (Maybe Node) <- MVec.new nodeCount
@@ -239,7 +241,7 @@ flatten Dag {root,edges,nodeCount} = runST run where
       mapM_ buildF $ IntMap.toList edges
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef count
-      return (root', edges', nodeCount')
+      return Dag' {root', edges', nodeCount'}
 
 
 

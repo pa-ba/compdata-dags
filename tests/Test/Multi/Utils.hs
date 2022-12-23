@@ -23,10 +23,12 @@ testAllEq' trees f1 f2 = mapM_ run trees
     where run (T t) = do d <- reifyDag t
                          f1 t @=? f2 d
 
+{-
 testAllDagEq' :: (Typeable f, Typeable g, HFgeq f, HTraversable f, EqHF g, ShowHF g, HTraversable g) => [T (Term f)] -> (Dag f :-> Dag g) -> (Dag f :-> Dag g) -> Assertion
 testAllDagEq' trees f1 f2 = mapM_ run trees
     where run (T t) = do d <- reifyDag t
                          assertBool (show (f1 d) ++ " =iso= " ++ show (f2 d)) (f1 d `iso` f2 d)
+-}
 
 testAllDagBisim' :: (Typeable f, HFgeq f, HTraversable f, EqHF g, ShowHF g, HTraversable g) => [T (Term f)] -> (Dag f :-> Dag g) -> (Dag f :-> Dag g) -> Assertion
 testAllDagBisim' trees f1 f2 = mapM_ run trees

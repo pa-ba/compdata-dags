@@ -29,9 +29,9 @@ import Unsafe.Coerce
 tests =
     [ testGroup "reify"
       [ --testCase "unravel" case_reifyUnravel
-        testCase "strongIso" case_reifyStrongIso
-      , testCase "iso" case_reifyIso
-      , testCase "bisim" case_reifyBisim
+      --  testCase "strongIso" case_reifyStrongIso
+      --, testCase "iso" case_reifyIso
+      --, testCase "bisim" case_reifyBisim
       ]
     ]
 
@@ -113,6 +113,7 @@ bisimNotIso = [DagPair (it1,ig1),DagPair (it2,ig2)] where
               1
 
 
+{-
 case_reifyStrongIso = zipWithM_ run intTrees intGraphs
     where run (T t) (T g) = do d <- reifyDag t
                                assertBool ("strongIso\n" ++ show d ++ "\n\n" ++ show (g :: Dag IntTreeF _)) (strongIso d $ unsafeCoerce g)
@@ -128,3 +129,4 @@ case_reifyBisim = mapM_ run bisimNotIso
             d1 <- reifyDag t1
             assertBool ("not iso\n" ++ show d1 ++ "\n\n" ++ show d2) (not (iso d1 d2))
             assertBool ("bisim\n" ++ show d1 ++ "\n\n" ++ show d2) (bisim d1 d2)
+-}
