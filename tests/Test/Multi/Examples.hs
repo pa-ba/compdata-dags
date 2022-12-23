@@ -24,7 +24,7 @@ import qualified Data.IntMap as IntMap
 
 tests = 
     [ testGroup "Repmin"
-      [ testCase "Rewrite" case_repminRewrite
+      [ --testCase "Rewrite" case_repminRewrite
       --, testCase "TreePAG" case_repminTreePAG
       --, testCase "PAG bisim" case_repminPAG
       --, testCase "PAG single leaf" case_repminPAG_singleLeaf
@@ -35,7 +35,7 @@ tests =
     ]
     
 
-case_repminRewrite = testAllEq' intTrees (E . repmin') (E . unravel . repminG')
+--case_repminRewrite = testAllEq' intTrees (E . repmin') (E . unravel . repminG')
 
     {-
 -- Result of rewrite version and version are not iso but at least
