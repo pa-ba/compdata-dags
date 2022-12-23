@@ -62,6 +62,10 @@ instance Typeable t => Integral (Node t) where
 instance GEq Node where
     geq a@(Node i) b@(Node j) = if i == j && typeOf a == typeOf b then Just $ unsafeCoerce Refl else Nothing
 
+instance KEq Node where
+    n `keq` m = case n `geq` m of Just _  -> True
+                                  Nothing -> False
+
 instance Eq (Node k) where a==b = case a `geq` b of Nothing -> False
                                                     Just Refl -> True
 

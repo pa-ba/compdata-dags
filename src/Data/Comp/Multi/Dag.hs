@@ -270,8 +270,6 @@ strongIso Dag {root=r1, edges=e1, nodeCount=nx1}
 -- is, it turns the nested representation of edges into single layers.
 
 flatten :: forall f i . (HTraversable f, Typeable i, Typeable f) => Dag f i -> (f Node i, M.DMap Node (f Node), Int)
-flatten d = let Dag' {root', edges', nodeCount'} = termTree' $ unravel d in (root', edges', nodeCount')
-{-
 flatten Dag {root, edges, nodeCount} = runST run where
     run :: forall s . ST s (f Node i, M.DMap Node (f Node), Int)
     run = do
@@ -306,7 +304,6 @@ flatten Dag {root, edges, nodeCount} = runST run where
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef count
       return (root', edges', nodeCount')
--}
 
 
 
@@ -317,14 +314,14 @@ flatten Dag {root, edges, nodeCount} = runST run where
 -- of outgoing nodes the two edges point to. Otherwise the function
 -- returns 'Nothing'.
 
-checkIso :: (e i -> e j -> Maybe [(Node i,Node j)])
+checkIso :: forall i j e . (e i -> e j -> Maybe [(Node i,Node j)])
          -> (e i, M.DMap Node e, Int)
          -> (e j, M.DMap Node e, Int) -> Bool
 checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
    run :: ST s Bool
    run = do
      -- create empty mapping from nodes in g1 to nodes in g2
-     nMap :: Vec.MVector s (Maybe (Node j)) <- MVec.new nx1
+     nMap :: Vec.MVector s (Maybe (E Node)) <- MVec.new nx1
      MVec.set nMap Nothing
      -- create empty set of nodes in g2 that are "mapped to" by the
      -- mapping created above
@@ -336,7 +333,7 @@ checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
          checkN (n1,n2) = do
            nm' <- MVec.unsafeRead nMap (getNode n1)
            case nm' of
-             Just n' -> return (n2 == n')
+             Just n' -> return (E n2 == n')
              Nothing -> do
                b <- MVec.unsafeRead nSet (getNode n2)
                if b
@@ -345,7 +342,7 @@ checkIso checkEq (r1,e1,nx1) (r2,e2,nx2) = runST run where
                -- n2 is not mapped to
                else do
                  -- create mapping from n1 to n2
-                 MVec.write nMap (getNode n1) (Just n2)
+                 MVec.write nMap (getNode n1) (Just $ E n2)
                  MVec.write nSet (getNode n2) True
                  checkT (e1 M.! n1) (e2 M.! n2)
      checkT r1 r2
