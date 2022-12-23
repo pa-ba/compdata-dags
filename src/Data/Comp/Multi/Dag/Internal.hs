@@ -32,10 +32,7 @@ import Unsafe.Coerce
 -- | The type of node in a 'Dag'.
 
 data Node :: * -> * where
-    Node :: Typeable t =>  Int -> Node t
-
-getNode :: Node t -> Int
-getNode (Node i) = i
+    Node :: Typeable t =>  {getNode :: Int} -> Node t
 
 instance Typeable t => Num (Node t) where
     fromInteger = Node . fromInteger

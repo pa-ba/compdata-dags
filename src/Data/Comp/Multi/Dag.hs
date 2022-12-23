@@ -41,7 +41,6 @@ module Data.Comp.Multi.Dag
     , flatten
 
     , Node (..)
-    , getNode
     , SName (..)
     , TermPair (..)
     ) where
