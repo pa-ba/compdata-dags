@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeApplications     #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns       #-}
 
 
 --------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ termTree' :: forall f i . (HTraversable f, HFunctor f, Typeable i, Typeable f) =
 termTree' (Term t) = Dag' r e n where
     s = number t
     r = hfmap (\(Numbered j _) -> unsafeCoerce (Node j :: Node ())) s
-    m = 1+hfoldl ((. getNode) . max) 0 r
+    m = 1+hfoldl (\x (Node y) -> max x y) 0 r
     (n, e) = execState (hmapM run s) (m, M.empty)
     run :: forall j . Numbered (Term f) j -> State (Int, Edges' f) (K () j)
     run (Numbered i (Term !t)) = do
@@ -137,7 +137,7 @@ termTree' (Term t) = Dag' r e n where
         let t' = hfmap (\(Numbered j _) -> unsafeCoerce (Node $ n+j :: Node ())) $ number t
         let t'' = hfmap (\(Numbered j x) -> Numbered (n+j) x) $ number t
         let e' = M.insert (unsafeCoerce (Node i :: Node ())) t' e
-        let (K m) = hfoldl (fmap fmap fmap (K . unK) max . (K . unK)) 0 . hfmap (\(Numbered j _) -> K $ j+1) $ number t
+        let (K m) = hfoldl (\(K x) (K y) -> K $ max x y) 0 . hfmap (\(Numbered j _) -> K $ j+1) $ number t
         put (n+m, e')
         hmapM run t''
         return $ K ()
