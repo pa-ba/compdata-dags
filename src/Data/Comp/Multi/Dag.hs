@@ -161,9 +161,9 @@ newtype SName f i = SName {getSName :: StableName (f (Term f) i)}
 instance Eq (SName f i) where
     (==) = (. getSName) $ (. getSName) .  (==)
 instance Hashable (SName f i) where
-    hashWithSalt s = hashWithSalt 239 . hashWithSalt s . getSName
+    hashWithSalt s = hashWithSalt s . getSName
 instance Hashable (Some (SName f)) where
-    hashWithSalt i (Some x) = hashWithSalt 789 $ hashWithSalt i x
+    hashWithSalt i (Some x) = hashWithSalt 1 $ hashWithSalt i x
 instance GEq (SName f) where
     a `geq` b = if getSName a == unsafeCoerce (getSName b) then Just $ unsafeCoerce Refl else Nothing
 newtype TermPair f i = TermPair {getTermPair :: (Bool, f (SName f) i)}
