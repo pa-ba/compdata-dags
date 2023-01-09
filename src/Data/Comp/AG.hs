@@ -53,6 +53,7 @@ runAG up down dinit t = uFin where
         bel (Numbered i s) =
             let d' = lookupNumMap d i m
             in Numbered i (run d' s, d')
+        m :: NumMap (u, d) d
         m = explicit down (u,d) unNumbered t'
         u = explicit up (u,d) unNumbered t'
 
@@ -88,6 +89,7 @@ runRewrite up down trans dinit t = res where
             let d' = lookupNumMap d i m
                 (u', s') = run d' s
             in Numbered i ((u', d'),s')
+        m :: NumMap ((u, d), Term g) d
         m = explicit down (u,d) (fst . unNumbered) t'
         u = explicit up (u,d) (fst . unNumbered) t'
         t'' = appCxt $ snd . unNumbered <$> explicit trans (u,d) (fst . unNumbered) t'
