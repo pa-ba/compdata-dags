@@ -9,6 +9,7 @@
 # to be used for project dependencies. For example:
 #
 # resolver: lts-3.5
+resolver: lts-20.5
 # resolver: nightly-2015-09-21
 # resolver: ghc-7.10.2
 #

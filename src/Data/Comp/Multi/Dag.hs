@@ -158,6 +158,8 @@ data CyclicException = CyclicException
 instance Exception CyclicException
 
 newtype SName f i = SName {getSName :: StableName (f (Term f) i)}
+instance Eq (SName f i) where
+    (==) = (. getSName) $ (. getSName) .  (==)
 instance Hashable (SName f i) where
     hashWithSalt s = hashWithSalt 239 . hashWithSalt s . getSName
 instance Hashable (Some (SName f)) where
