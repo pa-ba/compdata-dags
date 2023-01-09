@@ -100,16 +100,15 @@ runPAG res syn inh dinit Dag {edges,root,nodeCount} = result where
              -- apply the semantic functions
              let mkFresh = liftM2 (,) (Traversable.mapM freshNode $  explicit syn (u :*: d) unNumbered result)
                                       (Traversable.mapM (Traversable.mapM freshNode) $  explicit inh (u :*: d) unNumbered result)
-                 ((u,m),(Fresh n' e')) = runState mkFresh (Fresh n e)
+                 m :: NumMap ((:*:) u d Node) (d Node)
+                 ((u,m),Fresh n' e') = runState mkFresh (Fresh n e)
              writeSTRef newEdges e'
              writeSTRef nextNode n'
                  -- recurses into the child nodes and numbers them
              let run' :: Context f Node -> ST s (Numbered ((u :*: d) Node))
                  run' s = do i <- readSTRef count
                              writeSTRef count $! (i+1)
-                             let d' = case lookupNumMap' i m of
-                                       Nothing -> d
-                                       Just d' -> d'
+                             let d' = fromMaybe d (lookupNumMap' i m)
                              u' <- runF d' s
                              return (Numbered i (u' :*: d'))
              result <- Traversable.mapM run' t
