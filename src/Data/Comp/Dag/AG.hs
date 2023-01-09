@@ -77,6 +77,7 @@ runAG res syn inh dinit Dag {edges,root,nodeCount} = uFin where
           run d t = mdo
              -- apply the semantic functions
              let u = explicit syn (u,d) unNumbered result
+                 m :: NumMap (u, d) d
                  m = explicit inh (u,d) unNumbered result
                  -- recurses into the child nodes and numbers them
                  run' :: Context f Node -> ST s (Numbered (u,d))
