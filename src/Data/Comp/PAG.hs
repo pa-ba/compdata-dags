@@ -48,12 +48,13 @@ runPAG :: forall f u d g . (Traversable f, Functor g, Functor d, Functor u)
       -> u (Term g)
 runPAG up down dinit t = uFin where
     uFin = run dFin t
-    dFin = fmap appCxt $ dinit uFin
+    dFin = appCxt <$> dinit uFin
     run :: d (Term g) -> Term f -> u (Term g)
     run d (Term t) = u where
-        t' = fmap bel $ number t
+        t' = bel <$> number t
         bel (Numbered i s) =
             let d' = lookupNumMap d i m
             in Numbered i (run d' s :*: d')
-        m = fmap (fmap appCxt) $ explicit down (u :*: d) unNumbered t'
-        u = fmap appCxt $ explicit up (u :*: d) unNumbered t'
+        m :: NumMap ((:*:) u d (Term g)) (d (Cxt NoHole g ()))
+        m = fmap appCxt <$> explicit down (u :*: d) unNumbered t'
+        u = appCxt <$> explicit up (u :*: d) unNumbered t'
