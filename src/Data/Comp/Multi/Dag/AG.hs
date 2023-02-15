@@ -53,6 +53,7 @@ import Data.Vector (Vector,MVector)
 import qualified Data.Vector as Vec
 import qualified Data.Vector.Generic.Mutable as MVec
 import Unsafe.Coerce
+import Debug.Trace
 
 newtype DPair f i = DPair (Node i, f (Context f Node) i)
 type EPair f = E (DPair f)
@@ -332,7 +333,7 @@ relabelNodes root edges nodeCount = runST run where
           build' (Hole n) = do
                          n' <- build n
                          e <- readSTRef newEdges
-                         return (e M.! n')
+                         return (trace ("e:" ++ show e) e M.! trace ("n':" ++ show n') n')
           build' (Term f) = hmapM (hmapM build) f
       -- start relabelling from the root
       root' <- build' root
