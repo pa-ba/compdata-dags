@@ -72,6 +72,7 @@ import qualified Data.Dependent.Map as M
 import qualified Data.Dependent.Sum as S
 import Unsafe.Coerce
 import Data.GADT.Compare
+import Debug.Trace
 
 -- | This class makes Term f and f (Term f) instances of GEq, so they can be used in dags.
 class HFgeq (f :: (* ->  *) -> * -> *) where
@@ -242,7 +243,7 @@ bisim Dag {root=r1, edges=e1}  Dag {root=r2, edges=e2} = runF r1 r2
     where run :: forall j k . (Context f Node j, Context f Node k) -> Bool
           run (t1, t2) = runF (step e1 t1) (step e2 t2)
           step :: forall j . Edges f -> Context f Node j -> f (Context f Node) j
-          step e (Hole n) = e M.! n
+          step e (Hole n) = (trace ("e:" ++ show (M.keys e)) e M.! trace ("n:" ++ show n) n) --e M.! n
           step _ (Term t) = t
           runF :: forall j k . f (Context f Node) j -> f (Context f Node) k -> Bool
           runF f1 f2 = case heqMod f1 f2 of

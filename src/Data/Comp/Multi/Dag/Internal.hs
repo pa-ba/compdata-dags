@@ -24,6 +24,7 @@ import Data.Comp.Multi.HFunctor
 import Data.Comp.Multi.Derive
 import qualified Data.Dependent.Map as M
 import Data.GADT.Compare
+import Data.GADT.Show
 import Data.Type.Equality
 import Data.Typeable
 import Data.Bifunctor
@@ -68,6 +69,8 @@ instance Eq (Node k) where a==b = case a `geq` b of Nothing -> False
 
 instance KShow Node where
     kshow (Node i) = K $ show i
+
+instance GShow Node
 
 instance GCompare Node where
     gcompare a@(Node i) b@(Node j) = case compare i j of

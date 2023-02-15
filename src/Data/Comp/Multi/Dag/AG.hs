@@ -333,7 +333,7 @@ relabelNodes root edges nodeCount = runST run where
           build' (Hole n) = do
                          n' <- build n
                          e <- readSTRef newEdges
-                         return (trace ("e:" ++ show e) e M.! trace ("n':" ++ show n') n')
+                         return (trace ("e:" ++ show (M.keys e)) e M.! trace ("n':" ++ show n') n')
           build' (Term f) = hmapM (hmapM build) f
       -- start relabelling from the root
       root' <- build' root
