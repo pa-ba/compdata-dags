@@ -70,7 +70,8 @@ instance Eq (Node k) where a==b = case a `geq` b of Nothing -> False
 instance KShow Node where
     kshow (Node i) = K $ show i
 
-instance GShow Node
+instance GShow Node where
+    gshowsPrec _i n@(Node j) str = show j ++ show (typeOf n) ++ str
 
 instance GCompare Node where
     gcompare a@(Node i) b@(Node j) = case compare i j of

@@ -227,7 +227,7 @@ unravel :: forall f i . (Typeable i, HFunctor f) => Dag f i -> Term f i
 unravel Dag {root, edges} = Term $ hfmap build root
     where build :: forall i . Context f Node i -> Term f i
           build (Term t) = Term $ hfmap build t
-          build (Hole n) = Term . hfmap build $ edges M.! n
+          build (Hole n@(Node _)) = Term . hfmap build $ (trace ("edges: " ++ show (M.keys edges))) edges M.! (trace ("n: " ++ show n ++ show (typeOf n)) n)
 
 -- | Checks whether two dags are bisimilar. In particular, we have
 -- the following equality
