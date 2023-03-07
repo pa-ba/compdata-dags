@@ -29,6 +29,7 @@
 module Data.Comp.Multi.Dag
     ( Dag (..)
     , Dag' (..)
+    , Edges'
     , HFgeq (..)
     , termTree
     , termTree'
