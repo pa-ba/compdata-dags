@@ -21,10 +21,14 @@
 --------------------------------------------------------------------------------
 
 module Data.Comp.Dag
-    ( Dag
+    ( Dag (..)
+    , Dag' (..)
     , termTree
+    , termTree'
+    , simpDag
     , reifyDag
     , unravel
+    , flatten
     , bisim
     , iso
     , strongIso
@@ -37,7 +41,7 @@ import Data.Comp.Equality
 import Data.Comp.Term
 import Data.Foldable (Foldable)
 import qualified Data.HashMap.Lazy as HashMap
-import Data.IntMap
+import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.IORef
 import Data.Traversable (Traversable)
@@ -47,6 +51,7 @@ import System.Mem.StableName
 
 import Control.Monad.ST
 import Data.Comp.Show
+import Data.Comp.Mapping
 import Data.List
 import Data.STRef
 import qualified Data.Vector as Vec
@@ -63,10 +68,41 @@ instance (ShowF f, Functor f) => Show (Dag f)
         showLst ss = "[" ++ intercalate "," ss ++ "]"
 
 
+instance (ShowF f, Functor f) => Show (Dag' f)
+  where
+    show (Dag' r es _) = unwords
+        [ "mkDag'"
+        , show $ simpCxt r
+        , showLst ["(" ++ show n ++ "," ++ show (simpCxt f) ++ ")" | (n,f) <- IntMap.toList es ]
+        ]
+      where
+        showLst ss = "[" ++ intercalate "," ss ++ "]"
+
 
 -- | Turn a term into a graph without sharing.
 termTree :: Functor f => Term f -> Dag f
 termTree (Term t) = Dag (fmap toCxt t) IntMap.empty 0
+
+-- | Turn a term into a flat graph without sharing.
+termTree' :: forall f . (Traversable f, Functor f) => Term f -> Dag' f
+termTree' (Term t) = Dag' r e n where
+    s = number t
+    r = fmap (\(Numbered j _) -> j) s
+    m = 1+foldl' max 0 r
+    (n, e) = execState (mapM_ run s) (m, IntMap.empty)
+    run :: Numbered (Term f) -> State (Int, Edges' f) ()
+    run (Numbered i (Term !t)) = do
+        (n, e) <- get
+        let t' = (\(Numbered j _) -> n+j) <$> number t
+        let t'' = (\(Numbered j x) -> Numbered (n+j) x) <$> number t
+        let e' = IntMap.insert i t' e
+        let m = foldl' max 0 . fmap (\(Numbered j _) -> j+1) $ number t
+        put (n+m, e')
+        mapM_ run t''
+
+-- | Convert a Dag' to a Dag.
+simpDag :: Functor f => Dag' f -> Dag f
+simpDag (Dag' r e n) = Dag (fmap Hole r) (fmap Hole <$> e) n
 
 -- | This exception indicates that a 'Term' could not be reified to a
 -- 'Dag' (using 'reifyDag') due to its cyclic sharing structure.
@@ -154,7 +190,8 @@ bisim Dag {root=r1,edges=e1}  Dag {root=r2,edges=e2} = runF r1 r2
 -- | Checks whether the two given DAGs are isomorphic.
 
 iso :: (Traversable f, Foldable f, EqF f) => Dag f -> Dag f -> Bool
-iso g1 g2 = checkIso eqMod (flatten g1) (flatten g2)
+iso g1 g2 = checkIso eqMod (let Dag' {root', edges', nodeCount'} = flatten g1 in (root', edges', nodeCount'))
+                           (let Dag' {root', edges', nodeCount'} = flatten g2 in (root', edges', nodeCount'))
 
 
 -- | Checks whether the two given DAGs are strongly isomorphic, i.e.
@@ -172,9 +209,9 @@ strongIso Dag {root=r1,edges=e1,nodeCount=nx1}
 -- | This function flattens the internal representation of a DAG. That
 -- is, it turns the nested representation of edges into single layers.
 
-flatten :: forall f . Traversable f => Dag f -> (f Node, IntMap (f Node), Int)
+flatten :: forall f . Traversable f => Dag f -> Dag' f
 flatten Dag {root,edges,nodeCount} = runST run where
-    run :: forall s . ST s (f Node, IntMap (f Node), Int)
+    run :: forall s . ST s (Dag' f)
     run = do
       count <- newSTRef 0
       nMap :: Vec.MVector s (Maybe Node) <- MVec.new nodeCount
@@ -204,7 +241,7 @@ flatten Dag {root,edges,nodeCount} = runST run where
       mapM_ buildF $ IntMap.toList edges
       edges' <- readSTRef newEdges
       nodeCount' <- readSTRef count
-      return (root', edges', nodeCount')
+      return Dag' {root', edges', nodeCount'}
 
 
 

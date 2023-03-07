@@ -17,13 +17,11 @@ Build-Type:             Simple
 Cabal-Version:          >=1.9.2
 bug-reports:            https://github.com/pa-ba/compdata-dags/issues
 
-
 extra-source-files:
   -- test files
   tests/Test/*.hs
   -- example files
   examples/Examples/*.hs
-
 
 library
   Exposed-Modules:      Data.Comp.AG
@@ -31,11 +29,19 @@ library
                         Data.Comp.Dag
                         Data.Comp.Dag.AG
                         Data.Comp.Dag.PAG
+                        Data.Comp.Multi.AG
+                        Data.Comp.Multi.PAG
+                        Data.Comp.Multi.Dag
+                        Data.Comp.Multi.Dag.AG
+                        Data.Comp.Multi.Dag.PAG
   Other-Modules:        Data.Comp.Dag.Internal
                         Data.Comp.AG.Internal
                         Data.Comp.PAG.Internal
+                        Data.Comp.Multi.Dag.Internal
+                        Data.Comp.Multi.AG.Internal
+                        Data.Comp.Multi.PAG.Internal
   Build-Depends:	base >= 4.7, base < 5, compdata >= 0.10, unordered-containers, 
-                        mtl, containers, vector
+                        mtl, containers, vector, hashable, dependent-map, dependent-sum, dependent-hashmap, prim-uniq, some
   hs-source-dirs:	src
   ghc-options:          -W
 
@@ -45,8 +51,8 @@ Test-Suite test
   Main-is:		RunTests.hs
   hs-source-dirs:	tests examples src
   Build-Depends:        base >= 4.7, base < 5, compdata >= 0.10, unordered-containers, 
-                        mtl, containers, vector, test-framework-hunit, HUnit, test-framework,
-                        QuickCheck >= 2 && < 2.8, test-framework-quickcheck2 >= 0.3
+                        mtl, containers, vector, hashable, dependent-map, dependent-sum, dependent-hashmap, prim-uniq, some, test-framework-hunit, HUnit, test-framework,
+                        QuickCheck >= 2, test-framework-quickcheck2 >= 0.3
   Other-Modules:        Data.Comp.AG
                         Data.Comp.AG.Internal
                         Data.Comp.Dag
@@ -64,6 +70,20 @@ Test-Suite test
                         Test.Dag
                         Test.Examples
                         Test.Utils
+                        Data.Comp.Multi.AG
+                        Data.Comp.Multi.AG.Internal
+                        Data.Comp.Multi.Dag
+                        Data.Comp.Multi.Dag.AG
+                        Data.Comp.Multi.Dag.Internal
+                        Data.Comp.Multi.Dag.PAG
+                        Data.Comp.Multi.PAG
+                        Data.Comp.Multi.PAG.Internal
+                        Examples.Multi.LeavesBelow
+                        Examples.Multi.Types
+                        Examples.Multi.Repmin
+                        Test.Multi.Dag
+                        Test.Multi.Utils
+                        Test.Multi.Examples
 
 source-repository head
   type:     git

@@ -58,7 +58,7 @@ hasSingleLeaf Dag {root = r, edges = e} = IntMap.foldr (\t c -> countLeaves t + 
 -- | Counts the leaf nodes in the given context.
 countLeaves :: IntTreeF (Context IntTreeF a) -> Int
 countLeaves (Leaf _) = 1
-countLeaves (Node x y) = countLeaves' x + countLeaves' y
+countLeaves (TreeNode x y) = countLeaves' x + countLeaves' y
   where
     countLeaves' (Term t) = countLeaves t
     countLeaves' (Hole _) = 0

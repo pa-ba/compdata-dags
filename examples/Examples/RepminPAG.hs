@@ -32,14 +32,14 @@ newtype MinI a = MinI a deriving (Functor, Foldable, Traversable)
 
 minS ::  Syn IntTreeF atts MinS f
 minS (Leaf i)    =  MinS i
-minS (Node a b)  =  MinS $ min (unMinS $ below a) (unMinS $ below b)
+minS (TreeNode a b)  =  MinS $ min (unMinS $ below a) (unMinS $ below b)
 
 minI :: Inh IntTreeF atts MinI f
 minI _ = empty
 
 rep ::  (MinI :< atts) => Syn IntTreeF atts I IntTreeF
 rep (Leaf _)    =  let MinI n = above in I (Hole n)
-rep (Node a b)  =  I $ iNode (Hole $ unI $ below a) (Hole $ unI $ below b)
+rep (TreeNode a b)  =  I $ iTreeNode (Hole $ unI $ below a) (Hole $ unI $ below b)
 
 
 repminG :: Dag IntTreeF -> Dag IntTreeF
